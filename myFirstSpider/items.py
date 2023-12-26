@@ -21,3 +21,11 @@ class TencentMedItem(scrapy.Item):
     img = scrapy.Field()
     content = scrapy.Field()
     publisher = scrapy.Field()
+
+
+class BaiduMainPage(scrapy.Item):
+    name = scrapy.Field(serializer=str)
+    title = scrapy.Field(serializer=str)
+    img = scrapy.Field(serializer=str)
+    content = scrapy.Field(serializer=str)
+    publisher = scrapy.Field(serializer=str)

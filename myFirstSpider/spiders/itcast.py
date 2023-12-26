@@ -14,8 +14,8 @@ class ItcastSpider(scrapy.Spider):
     # 解析方法，当每个url下载完成后将被调用，唯一参数为response对象，
     # 负责解析网页数据，提取结构化数据(生成item)
     def parse(self, response):
-        # filename = "teacher.json"
-        # open(filename, 'wb+').write(response.body)
+        filename = "result.json"
+        open(filename, 'wb+').write(response.body)
 
         # 存放老师信息的集合
         items = []

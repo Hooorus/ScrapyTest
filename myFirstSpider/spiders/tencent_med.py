@@ -1,4 +1,5 @@
 import scrapy
+import time
 from myFirstSpider.items import TencentMedItem
 
 
@@ -7,54 +8,60 @@ class TencentMedSpider(scrapy.Spider):
 
     allowed_domains = [
         "www.xywy.com",
-        "baike.qq.com",
+        "h5.baike.qq.com",
         "baidu.com"
     ]
 
-    # start_urls = ["https://h5.baike.qq.com/mobile/home.html?VNK=bde7672d"]
-    # start_urls = ["https://www.xywy.com/"]
-    start_urls = ["https://www.baidu.com/"]
+    start_urls = ["https://h5.baike.qq.com/mobile/home.html?VNK=bde7672d"]
 
     def parse(self, response):
+
+        time.sleep(5)  # 休息5秒钟
+
         # filename = "tencent_med.json"
         # open(filename, 'wb+').write(response.body)
 
         # 存放爬取结果
         allocations = []
 
-        # 各类xpath
-        # response_xpath = ""
+        print("-------response------")
+        print(response)
 
-        #
-        # response_xpath = "//ul[@class='art-left']/li/a/div[@class='txt']//text()"
-        response_xpath = "//ul"
+        # print("-------response.text------")
+        # print(response.text)
 
-        # 百度
-        response_xpath = "//ul[@class='s-hotsearch-content']/li/a/span[@class='title-content-title']/text()"
+        # response_xpath = "//div[@class='feed-item']/div[@class='feed-item-card']/div[@class='card-article']/div[@class='img-wrap']/img[@class='img']/@src"
+        # response_xpath = "//div[@class='feed-item']/div[@class='feed-item-card']/div[@class='card-article']/div[@class='feed-doc-info']/div[@class='title']/span/text()"
+        response_xpath = "//div[@class='feed-item']"
 
-        # response_xpath = "//div[@class='disease-list']"
-        # response_xpath = "//ul[@class='art-left']"
-        # name_xpath = "//a[@class='one']"
-        # 弹窗会搞坏搜索目录
+        print("-------response.xpath(response_xpath)------")
+        print(response.xpath(response_xpath))
+
+
         for unit in response.xpath(response_xpath):
-            print("-------------")
+            print("-------unit------")
             print(unit)
             # 暂存区
             allocation = TencentMedItem()
 
             # 提取相应内容到指定bean内
             name = unit.extract()
+            print("-------name------")
+            print(name)
+            # img = unit.xpath("//div[@class='img-wrap']/img[@class='img']/@src").extract()
+            # content = unit.extract()
+            # publisher = unit.extract()
+
             # title = unit.xpath(title_xpath).extract()
             # img = unit.xpath(img_xpath).extract()
             # content = unit.xpath(name_xpath).extract()
             # publisher = unit.xpath(publisher_xpath).extract()
 
             # xpath返回的是一个包含元素的列表
-            allocation['name'] = name[0]
-            # allocation['title'] = title[0]
-            # allocation['img'] = img[0]
-            # allocation['content'] = content[0]
-            # allocation['publisher'] = publisher[0]
+            allocation['name'] = name
+            # allocation['img'] = img
+            # allocation['content'] = content
+            # allocation['publisher'] = publisher
 
             allocations.append(allocation)
 

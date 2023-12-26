@@ -6,9 +6,29 @@
 # 项目自定义插件文件
 
 from scrapy import signals
+from scrapy.http import HtmlResponse
+from selenium import webdriver
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
+
+
+# 引入selenium
+class SeleniumMiddleware:
+    def __int__(self):
+        self.driver = webdriver.Chrome()
+
+    # def process_request(self, request, spider):
+    #     self.driver.get(request.url)
+    #     return HtmlResponse(self.driver.current_url, body=self.driver.page_source, encoding='utf-8', request=request)
+    #
+    # # 在使用完Selenium后，你需要在你的爬虫或中间件关闭时关闭WebDriver，否则可能会留下未清理的进程
+    # def spider_closed(self, spider):
+    #     self.driver.close()
+    #
+    # def __del__(self):
+    #     # 在对象销毁时关闭 WebDriver
+    #     self.driver.quit()
 
 
 class MyfirstspiderSpiderMiddleware:

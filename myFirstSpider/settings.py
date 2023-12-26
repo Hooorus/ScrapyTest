@@ -25,6 +25,12 @@ ROBOTSTXT_OBEY = False
 # 日志等级为DEBUG才显示
 LOG_LEVEL = 'DEBUG'
 
+# 激活selenium中间件，需要把第一个改成这个项目名称（不是爬虫名称）
+DOWNLOADER_MIDDLEWARES = {
+   'myFirstSpider.middlewares.SeleniumMiddleware': 543,
+}
+
+
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
 
