@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="ChatDev" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="test_scrapy" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="scrapy_test" project-jdk-type="Python SDK" />
 </project>
