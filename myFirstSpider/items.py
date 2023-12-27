@@ -29,3 +29,13 @@ class BaiduMainPage(scrapy.Item):
     img = scrapy.Field(serializer=str)
     content = scrapy.Field(serializer=str)
     publisher = scrapy.Field(serializer=str)
+
+
+class NineNineComCnItem(scrapy.Item):
+    issue_title = scrapy.Field(serializer=str)
+    issue_desc = scrapy.Field(serializer=str)
+    issue_date = scrapy.Field(serializer=str)
+    answer_doctor = scrapy.Field(serializer=str)
+    answer_analyze = scrapy.Field(serializer=str)
+    answer_opinion = scrapy.Field(serializer=str)
+    answer_date = scrapy.Field(serializer=str)

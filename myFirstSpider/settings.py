@@ -30,6 +30,14 @@ DOWNLOADER_MIDDLEWARES = {
    'myFirstSpider.middlewares.SeleniumMiddleware': 543,
 }
 
+# 随机下载延迟在1到3秒之间
+# DOWNLOAD_DELAY = (2, 5)
+# 启用或禁用对 DOWNLOAD_DELAY 的随机化
+# RANDOMIZE_DOWNLOAD_DELAY = True
+# 每个域名同时只能进行一个请求
+# CONCURRENT_REQUESTS_PER_DOMAIN = 1
+# 全局只进行一个请求
+# CONCURRENT_REQUESTS = 1
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
