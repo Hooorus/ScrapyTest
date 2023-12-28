@@ -80,6 +80,10 @@ class BingchengSpider(scrapy.Spider):
     chrome = "C:/Scoop/apps/chrome-dev-portable/current/chrome.exe"
     stealthjs = os.path.join(bin_dir, "stealth.min.js").replace("\\", "/")
     chromedriver = os.path.join(bin_dir, "chromedriver.exe").replace("\\", "/")
+    
+    custom_settings = {
+        'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter',
+    }
 
 
     def __init__(self, *args, **kwargs):
