@@ -31,6 +31,7 @@ CONCURRENT_REQUESTS = 2
 # See also autothrottle settings and docs
 DOWNLOAD_DELAY = 2
 
+COOKIES_ENABLED = True
 
 DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 # The download delay setting will honor only one of:
@@ -54,6 +55,10 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 #SPIDER_MIDDLEWARES = {
 #    "haodf.middlewares.HaodfSpiderMiddleware": 543,
 #}
+
+SPIDER_MIDDLEWARES = {
+    "haodf.middlewares.BingchengMiddleware": 543,
+}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
