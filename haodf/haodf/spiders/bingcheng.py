@@ -139,8 +139,9 @@ class BingchengSpider(scrapy.Spider):
             # yield response.follow(href, self.parse_disease)
             # https://docs.scrapy.org/en/latest/topics/debug.html?highlight=scrapy.request#debugging-spiders
             yield scrapy.Request(url=href,
-                           callback=self.parse_disease,
-                           meta=dict(disease=disease, incoming_url=url))
+                                 cookies=self.cookies,
+                                 callback=self.parse_disease,
+                                 meta=dict(disease=disease, incoming_url=url))
 
     @cookeis_check
     def parse_disease(self, response):
@@ -172,7 +173,8 @@ class BingchengSpider(scrapy.Spider):
             href = each.xpath(".//@href").extract_first()
             yield scrapy.Request(
                     url=href,
-                    callback=self.parse_answer,
+                    callback=self.parse_answer_pre,
+                    cookies=self.cookies,
                     errback=lambda err: self.log("===== Error ====", err),
                     meta=dict(disease=disease, incoming_url=url))
 
@@ -199,6 +201,7 @@ class BingchengSpider(scrapy.Spider):
             yield scrapy.Request(
                     url=href,
                     callback=self.parse_disease,
+                    cookies=self.cookies,
                     errback=lambda err: self.log("===== Error ====", err),
                     meta=dict(disease=disease, incoming_url=url))
         self.visited_diseases.append(url)
@@ -209,14 +212,33 @@ class BingchengSpider(scrapy.Spider):
     # https://www.haodf.com/bingcheng/8898021335.html
     # https://www.haodf.com/bingcheng/8898019356.html
     @cookeis_check
+    def parse_answer_pre(self, response):
+        """
+        在最后parse之前， 加入cookies
+        """
+        url = response.url
+        if url in self.visited_answers or not url:
+            return
+        try:
+            meta = response.meta
+            disease = meta['disease']
+            incoming_url = meta['incoming_url']
+        except Exception:
+            disease = 'Test'
+            incoming_url = url 
+
+        yield scrapy.Request(
+                url=url,
+                callback=self.parse_answer,
+                errback=lambda err: self.log("===== Error ====", err),
+                cookies=self.cookies,
+                meta=dict(disease=disease, incoming_url=incoming_url))
+
+
     def parse_answer(self, response):
         """
         最终的回答页面， 从这里生成AnwserItem, 录入数据库
         """
-        url = response.url
-        if url in self.visited_answers:
-            return
-
         if response.status == 302:
             with open("d:/tests/body.html", 'wb') as f:
                 f.write(response.body)
@@ -225,6 +247,7 @@ class BingchengSpider(scrapy.Spider):
             self.log('======= Saved response body for 302 redirect to login ===========')
             return
 
+        url = response.url
         try:
             meta = response.meta
             disease = meta['disease']
@@ -234,7 +257,6 @@ class BingchengSpider(scrapy.Spider):
             incoming_url = 'https://wwww.haodf.com'
 
         self.log(line_str(disease + " from " + incoming_url))
-
         diseaseinfo_xpath = "//p[@class='diseaseinfo']//span"
         suggestions_xpath = "//section[@class='suggestions marginLeft0']//span"
         diseaseinfo = response.xpath(diseaseinfo_xpath).xpath(".//text()").extract()
