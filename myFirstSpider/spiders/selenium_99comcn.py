@@ -48,41 +48,38 @@ class SeleniumTencentMedSpider(scrapy.Spider):
 
             # 使用Request对象发起请求，并指定回调函数为parse_subpage
             yield scrapy.Request(url, callback=self.parse_subpage, dont_filter=True)
+        # ------------------------------第一部分：第一次进入此网站结束---------------------------------
 
     # ------------------------------开始加载子页面------------------------------
     def parse_subpage(self, response, **kwargs):
         self.log("-------------parse_subpage url-------------\n%s" % response.url)
 
-        # first_link_element.click()
         # 在新页面等待特定元素加载完成
         self.driver.get(response.url)
         first_link_meta_element = WebDriverWait(self.driver, 10).until(
             expected_conditions.presence_of_element_located((By.XPATH, "//div[@class='dtl-left']"))
         )
         self.log("-------------first_link_meta_element-------------\n%s" % first_link_meta_element)
-        # ------------------------------在子页面爬取数据------------------------------
 
+        # ------------------------------在子页面爬取数据------------------------------
+        # 新建NineNineComCnItem类型的bean
         issue = NineNineComCnItem()
 
         # issue_title
-        issue_title = first_link_meta_element.find_element(By.XPATH,
-                                                           "./div[@class='dtl-wrap']/div[@class='dtl-top']/h1").text
+        issue_title = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap']/div[@class='dtl-top']/h1").text
         # issue_desc
-        issue_desc = first_link_meta_element.find_element(By.XPATH,
-                                                          "./div[@class='dtl-wrap']//div[@class='atcle-ms']/p").text
+        issue_desc = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap']//div[@class='atcle-ms']/p").text
         # issue_date
-        issue_date = first_link_meta_element.find_element(By.XPATH,
-                                                          "./div[@class='dtl-wrap']/div[@class='dtl-top']//div[@class='dtl-info']/span[1]").text
+        issue_date = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap']/div[@class='dtl-top']//div[@class='dtl-info']/span[1]").text
         # answer_doctor
-        answer_doctor = (str(first_link_meta_element.find_element(By.XPATH, "//dl[@class='dtl-ys']/dd/b").text) +
-                         str(first_link_meta_element.find_element(By.XPATH, "//dl[@class='dtl-ys']/dd/p").text))
-        # answer_analyze
-        answer_analyze = first_link_meta_element.find_element(By.XPATH, "//div[@class='atcle-ms']/p").text
+        answer_doctor = (str(first_link_meta_element.find_element_by_xpath("//dl[@class='dtl-ys']/dd/b").text) +
+                         str(first_link_meta_element.find_element_by_xpath("//dl[@class='dtl-ys']/dd/p").text))
+        # answer_analyze TODO 把病情分析和处理意见给我搞掉
+        answer_analyze = first_link_meta_element.find_element_by_xpath("//div[@class='dtl-reply']/p").text
         # answer_opinion
-        answer_opinion = first_link_meta_element.find_element(By.XPATH, "//div[@class='atcle-ms']/p[2]").text
+        answer_opinion = first_link_meta_element.find_element_by_xpath("//div[@class='dtl-reply']/p[2]").text
         # answer_date
-        answer_date = first_link_meta_element.find_element(By.XPATH,
-                                                           "./div[@class='dtl-wrap2']/div[@class='dtl-list']/div[@class='dtl-time']/span").text
+        answer_date = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap2']/div[@class='dtl-list']/div[@class='dtl-time']/span").text
 
         issue['issue_title'] = issue_title
         issue['issue_desc'] = issue_desc
@@ -93,14 +90,9 @@ class SeleniumTencentMedSpider(scrapy.Spider):
         issue['answer_date'] = answer_date
 
         self.log("-------------issue-------------\n%s" % issue)
-        print(issue)
 
         yield issue
-
-        # self.allocations.append(issue)
-
-        # self.log("-------------allocations-------------\n%s" % self.allocations)
-        # print(self.allocations)
+    # ------------------------------加载子页面结束------------------------------
 
     # 抓取第一个页面的5个数据，需要点进页面再出来
     # self.driver.find_element_by_xpath("//div[@class='layui-laypage-em']")
