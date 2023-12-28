@@ -27,7 +27,7 @@ def cookeis_check(func):
             self.driver = self.get_driver()
             self.log(line_str(f"calling {func}", 10))
             self.driver.get("https://passport.haodf.com/nusercenter/showlogin")
-            #
+            
             normal_login = self.driver.find_element(By.XPATH, "//*[text()='普通登录']")
             normal_login.click()
             sleep(0.5)
@@ -75,9 +75,12 @@ class BingchengSpider(scrapy.Spider):
     visited_diseases = []
     visited_answers = []
 
-    # dir but driver .ETC
     bin_dir = os.path.abspath(os.path.join(get_current_dir(), "../../bin"))
-    chrome = "C:/Scoop/apps/chrome-dev-portable/current/chrome.exe"
+    chromes = [
+        os.path.join(bin_dir, 'chrome-win64/chrome.exe'),
+        "C:/Scoop/apps/chrome-dev-portable/current/chrome.exe",
+        "C:/Program\ Files/Google/Chrome/Application/chrome.exe"
+    ]
     stealthjs = os.path.join(bin_dir, "stealth.min.js").replace("\\", "/")
     chromedriver = os.path.join(bin_dir, "chromedriver.exe").replace("\\", "/")
     
@@ -87,7 +90,11 @@ class BingchengSpider(scrapy.Spider):
 
 
     def __init__(self, *args, **kwargs):
-        if not os.path.isfile(self.chrome):
+        self.chrome = None
+        for chrome in self.chromes:
+            if os.path.isfile(chrome):
+                self.chrome = chrome
+        if self.chrome is None: 
             raise Exception(f"{self.chrome} not exists.")
         if not os.path.isfile(self.stealthjs):
             raise Exception(f"{self.stealthjs} not exists.")
@@ -139,8 +146,8 @@ class BingchengSpider(scrapy.Spider):
             disease = each.xpath(".//text()").extract_first()
             self.log(line_str(disease))
             self.log(line_str(href))
-            # 下面这行是来自chatgpt的回答
-            # yield response.follow(href, self.parse_disease)
+            # 下面这行是来自chatgpt的回答, 页面跳转
+            # TODO: yield response.follow(href, self.parse_disease)
             # https://docs.scrapy.org/en/latest/topics/debug.html?highlight=scrapy.request#debugging-spiders
             yield scrapy.Request(url=href,
                                  cookies=self.cookies,
@@ -231,18 +238,6 @@ class BingchengSpider(scrapy.Spider):
             disease = 'Test'
             incoming_url = url 
 
-        yield scrapy.Request(
-                url=url,
-                callback=self.parse_answer,
-                errback=lambda err: self.log("===== Error ====", err),
-                cookies=self.cookies,
-                meta=dict(disease=disease, incoming_url=incoming_url))
-
-
-    def parse_answer(self, response):
-        """
-        最终的回答页面， 从这里生成AnwserItem, 录入数据库
-        """
         if response.status == 302:
             with open("d:/tests/body.html", 'wb') as f:
                 f.write(response.body)
@@ -250,15 +245,6 @@ class BingchengSpider(scrapy.Spider):
                 f.write(response.text)
             self.log('======= Saved response body for 302 redirect to login ===========')
             return
-
-        url = response.url
-        try:
-            meta = response.meta
-            disease = meta['disease']
-            incoming_url = meta['incoming_url']
-        except Exception:
-            disease = 'Test'
-            incoming_url = 'https://wwww.haodf.com'
 
         self.log(line_str(disease + " from " + incoming_url))
         diseaseinfo_xpath = "//p[@class='diseaseinfo']//span"
@@ -271,8 +257,6 @@ class BingchengSpider(scrapy.Spider):
         item['disease'] = disease
         item['diseaseinfo'] = diseaseinfo
         item['suggestions'] = suggestions
-        if not diseaseinfo:
-            response.body
         self.log(item)
         self.visited_answers.append(url)
         yield item

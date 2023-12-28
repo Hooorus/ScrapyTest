@@ -8,6 +8,11 @@ from scrapy import signals
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
 
+class CookiesMiddleware(object):
+    def process_request(self, request, spider):
+        if not 'cookies' in request.meta:
+            request.meta['cookies'] = spider.cookies
+
 
 class BingchengMiddleware:
     # Not all methods need to be defined. If a method is not defined,

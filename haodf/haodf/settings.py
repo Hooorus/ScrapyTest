@@ -57,7 +57,7 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 #}
 
 SPIDER_MIDDLEWARES = {
-    "haodf.middlewares.BingchengMiddleware": 543,
+    "haodf.middlewares.CookiesMiddleware": 543,
 }
 
 # Enable or disable downloader middlewares
