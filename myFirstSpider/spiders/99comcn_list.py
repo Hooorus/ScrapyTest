@@ -1,5 +1,7 @@
+import csv
+import random
+
 import scrapy
-from scrapy.http import HtmlResponse
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
@@ -24,20 +26,32 @@ def is_next_button_available(driver):
         return True
 
 
-# ------------------------------is_next_button_disabled：没有下一个按钮返回false，有返回true------------------------------
+# ------------------------------write_to_file：写入文件模块------------------------------
+def write_to_file(raw_data, filename, file_type, write_mode, is_first_use):
+    try:
+        with open(filename + '.' + file_type, write_mode, newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=[''])
+            writer.writeheader()
+            for url_unit in raw_data:
+                writer.writerow({"": url_unit})
+            #
+            # if not is_first_use:
+            #     # TODO 去除行头的url这一行
+            return True
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
+
 
 class SeleniumTencentMedSpider(scrapy.Spider):
     name = "99comcn_list_crawler"
-    allowed_domains = [
-        "99.com.cn/"
-    ]
+    allowed_domains = ["99.com.cn/"]
     start_urls = ["https://www.99.com.cn/wenda/"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.driver = webdriver.Chrome()
         # ------------------------------自定义变量------------------------------
-        # 收集所有爬取到的数据
         self.allocations = []  # 装载所有url爬取到的内容
         self.is_first_in_parse = True  # 检验是否第一次进入网页
         self.url_container = []  # 装载所有爬取到的页面url
@@ -46,7 +60,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
     def parse(self, response, **kwargs):
         # 得到响应的url
         self.driver.get(response.url)
-        self.log("-------------response.url------------\n%s" % response.url)
+        self.log(f"-------------response.url------------\n{response.url}")
         self.is_first_in_parse = False
         # ------------------------------第一部分：第一次进入此网站---------------------------------
         first_link_elements = WebDriverWait(self.driver, 10).until(
@@ -61,60 +75,57 @@ class SeleniumTencentMedSpider(scrapy.Spider):
             first_link_element_href = first_link_element.get_attribute("href")
             # 得到拼接的url，并装载到url_container内
             url = response.urljoin(first_link_element_href)
-            self.log("-------------url-------------\n%s" % url)
+            # 收集到一个页面urls，写入文件
             self.url_container.append(url)
-            self.log("-------------url_container-------------\n%s" % self.url_container)
+        # 收集到一个页面urls，写入文件
+        write_to_file(self.url_container, "result", "csv", "a", True)
+        # 写完清空
+        self.url_container.clear()
 
         # ------------------------------第二部分：爬取下一个分页，疯狂循环，直到没有按钮了！！！---------------------------------
-
         while True:
             # 检查是否有更多的按钮，如果有，那么继续处理
             if is_next_button_available(self.driver):
+                # TODO 注意延时（1-5秒随机）
+                self.driver.implicitly_wait(random.uniform(1, 5))
                 # 调用xhr_to_next_page处理下一个分页
                 self.log("-------------start xhr_to_next_page-------------\n")
                 # 找到并点击按钮
                 next_page_button = self.driver.find_element_by_xpath(
                     "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next']")
                 next_page_button.click()
-                # TODO 小心时间
-                self.driver.implicitly_wait(3)
-                self.log("-------------next_page_button-------------\n%s" % next_page_button)
+                # TODO 注意延时（1-5秒随机）
+                self.driver.implicitly_wait(random.uniform(1, 5))
+                self.log(f"-------------next_page_button-------------\n{next_page_button}")
                 # 获取渲染后的页面内容
                 rendered_html = self.driver.page_source
-                self.log("-------------rendered_html------------\n%s" % rendered_html)
-                rendered_response = HtmlResponse(url=response.url, body=rendered_html, encoding='utf-8')
-                # 从渲染后的响应对象中创建 Selector----------------------------我他妈直接传给你文本看你收不收吧！！！----------------------------
-                re_selectors = scrapy.Selector(text=str(rendered_response))
+                # rendered_response = HtmlResponse(url=response.url, body=rendered_html, encoding='utf-8')
+                # 从渲染后的响应对象中
+                # 创建 Selector----------------------------我他妈直接传给你文本看你收不收吧！！！----------------------------
+                re_selectors = scrapy.Selector(text=str(rendered_html))
                 # 将渲染后的HTML内容传递给HtmlResponse对象
-                re_elements = re_selectors.xpath("//div[@class='isue-list']//a[@class='isue-bt']")
-                self.log("-------------re_elements-------------\n%s" % re_elements)
+                re_elements = re_selectors.xpath("//div[@class='isue-list']//a[@class='isue-bt']").extract()
+                self.log(f"-------------re_elements-------------\n{re_elements}")
 
-                # ----------------------------开始解析其中的5个超链接！！！----------------------------
+                # ----------------------------开始解析其中的5个超链接元素----------------------------
                 # 接下来会有小于等于5个的链接，我需要遍历他们，当然这个parse只做第一层目录的链接搜索，等到搜集完大部分的url后，再发给parse_subpage来处理响应
                 for re_element in re_elements:
                     # 获取链接的href属性值
-                    re_element_href = re_element.get_attribute("href")
+                    re_element_href = scrapy.Selector(text=re_element).xpath("//a/@href").extract_first()
+                    self.log(f"-------------re_element_href-------------\n{re_element_href}")
                     # 得到拼接的url，并装载到url_container内
                     url = response.urljoin(re_element_href)
-                    self.log("-------------url-------------\n%s" % url)
                     self.url_container.append(url)
-                    self.log("-------------url_container-------------\n%s" % self.url_container)
+                    self.log(f"-------------url_container-------------\n{self.url_container}")
+                # 收集到一个页面urls，写入文件
+                write_to_file(self.url_container, "result", "csv", "a", False)
+                # 写完清空
+                self.url_container.clear()
             else:
+                # write_to_file(self.url_container, "result", "csv", "a")
                 # 执行完成所有任务，没有剩余页面了
                 self.log("-------------system finished-------------\n")
                 break
-
-    # ------------------------------发送xhr请求去调用下一个页面------------------------------
-    # def xhr_to_next_page(self, response, **kwargs):
-    # 将渲染后的HTML内容传递给HtmlResponse对象
-    # rendered_response = HtmlResponse(url=response.url, body=rendered_html, encoding='utf-8')
-    # self.log("-------------rendered_response in xhr_to_next_page------------\n%s" % rendered_response)
-
-    # 回调给parse函数
-    # yield response.follow(url=next_page_url, callback=self.parse, meta={'rendered_response': rendered_response})
-    # yield rendered_response
-
-    # ------------------------------调用下一个页面结束------------------------------
 
     # ------------------------------加载与爬取子页面的信息------------------------------
     def parse_subpage(self, response, **kwargs):

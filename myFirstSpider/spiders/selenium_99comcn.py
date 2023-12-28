@@ -45,7 +45,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
     def parse(self, response, **kwargs):
         # 得到响应的url
         self.driver.get(response.url)
-        self.log("-------------response.url------------\n%s" % response.url)
+        self.log(f"-------------response.url------------\n{response.url}")
 
         first_link_elements = []
         while True:
@@ -54,11 +54,11 @@ class SeleniumTencentMedSpider(scrapy.Spider):
             if not self.is_first_in_parse:
                 # TODO 小心meta
                 rendered_response = response.text
-                self.log("-------------rendered_response------------\n%s" % rendered_response)
+                self.log(f"-------------rendered_response------------\n{rendered_response}")
                 # 从渲染后的响应对象中创建 Selector
-                re_selector = scrapy.Selector(text=rendered_response)
+                re_selector = scrapy.Selector(text=str(rendered_response))
                 re_selector.xpath("//div[@class='isue-list']//a[@class='isue-bt']")
-                self.log("-------------re_selector-------------\n%s" % re_selector)
+                self.log(f"-------------re_selector-------------\n{re_selector}")
             else:
                 self.is_first_in_parse = False
                 # ------------------------------第一部分：第一次进入此网站---------------------------------
@@ -77,7 +77,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
                 first_link_element_href = first_link_element.get_attribute("href")
                 # 得到拼接的url
                 url = response.urljoin(first_link_element_href)
-                self.log("-------------url-------------\n%s" % url)
+                self.log(f"-------------url-------------\n{url}")
 
                 # 使用Request对象发起请求，并指定回调函数为parse_subpage，跳转到parse_subpage函数
                 yield scrapy.Request(url, callback=self.parse_subpage, meta={'driver': self.driver}, dont_filter=True)
@@ -124,7 +124,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
         next_page_button = self.driver.find_element_by_xpath(
             "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next']")
         next_page_button.click()
-        self.log("-------------next_page_button-------------\n%s" % next_page_button)
+        self.log(f"-------------next_page_button-------------\n{next_page_button}")
 
         # 等待页面加载完成，可以根据实际情况调整等待时间
         # self.driver.implicitly_wait(5)
@@ -138,10 +138,10 @@ class SeleniumTencentMedSpider(scrapy.Spider):
 
         # 获取渲染后的页面内容
         rendered_html = self.driver.page_source
-        self.log("-------------rendered_html------------\n%s" % rendered_html)
+        self.log(f"-------------rendered_html------------\n{rendered_html}")
         # 将渲染后的HTML内容传递给HtmlResponse对象
         rendered_response = HtmlResponse(url=response.url, body=rendered_html, encoding='utf-8')
-        self.log("-------------rendered_response in xhr_to_next_page------------\n%s" % rendered_response)
+        self.log(f"-------------rendered_response in xhr_to_next_page------------\n{rendered_response}")
 
         # 回调给parse函数
         # yield response.follow(url=next_page_url, callback=self.parse, meta={'rendered_response': rendered_response})
