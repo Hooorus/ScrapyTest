@@ -27,7 +27,7 @@ def is_next_button_available(driver):
 # ------------------------------is_next_button_disabled：没有下一个按钮返回false，有返回true------------------------------
 
 class SeleniumTencentMedSpider(scrapy.Spider):
-    name = "99comcn2_crawler"
+    name = "99comcn_crawler"
     allowed_domains = [
         "99.com.cn/"
     ]
