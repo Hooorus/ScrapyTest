@@ -7,6 +7,21 @@ from selenium.webdriver.support import expected_conditions
 from myFirstSpider.items import NineNineComCnItem
 
 
+# ------------------------------is_next_button_disabled：没有下一个按钮返回false，有返回true------------------------------
+def is_next_button_available(driver):
+    # Use Selenium to check if the next button is disabled
+    try:
+        next_button = WebDriverWait(driver, 5).until(
+            expected_conditions.presence_of_element_located(
+                (By.XPATH, "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next layui-disabled']"))
+        )
+        return False
+    except:
+        return True
+
+
+# ------------------------------is_next_button_disabled：没有下一个按钮返回false，有返回true------------------------------
+
 class SeleniumTencentMedSpider(scrapy.Spider):
     name = "99comcn_crawler"
     allowed_domains = [
@@ -48,7 +63,18 @@ class SeleniumTencentMedSpider(scrapy.Spider):
 
             # 使用Request对象发起请求，并指定回调函数为parse_subpage
             yield scrapy.Request(url, callback=self.parse_subpage, dont_filter=True)
+
+        # ------------------------------第二部分：爬取下一个分页---------------------------------
+
+        # 检查是否有更多的按钮，如果有，那么继续处理
+        next_button = is_next_button_available(self.driver)
+        self.log("-------------next_button-------------\n%s" % next_button)
+
+        self.xhr_to_next_page(response, **kwargs)
+
         # ------------------------------第一部分：第一次进入此网站结束---------------------------------
+
+    # ------------------------------加载根页面结束------------------------------
 
     # ------------------------------开始加载子页面------------------------------
     def parse_subpage(self, response, **kwargs):
@@ -66,11 +92,14 @@ class SeleniumTencentMedSpider(scrapy.Spider):
         issue = NineNineComCnItem()
 
         # issue_title
-        issue_title = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap']/div[@class='dtl-top']/h1").text
+        issue_title = first_link_meta_element.find_element_by_xpath(
+            "./div[@class='dtl-wrap']/div[@class='dtl-top']/h1").text
         # issue_desc
-        issue_desc = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap']//div[@class='atcle-ms']/p").text
+        issue_desc = first_link_meta_element.find_element_by_xpath(
+            "./div[@class='dtl-wrap']//div[@class='atcle-ms']/p").text
         # issue_date
-        issue_date = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap']/div[@class='dtl-top']//div[@class='dtl-info']/span[1]").text
+        issue_date = first_link_meta_element.find_element_by_xpath(
+            "./div[@class='dtl-wrap']/div[@class='dtl-top']//div[@class='dtl-info']/span[1]").text
         # answer_doctor
         answer_doctor = (str(first_link_meta_element.find_element_by_xpath("//dl[@class='dtl-ys']/dd/b").text) +
                          str(first_link_meta_element.find_element_by_xpath("//dl[@class='dtl-ys']/dd/p").text))
@@ -79,7 +108,8 @@ class SeleniumTencentMedSpider(scrapy.Spider):
         # answer_opinion
         answer_opinion = first_link_meta_element.find_element_by_xpath("//div[@class='dtl-reply']/p[2]").text
         # answer_date
-        answer_date = first_link_meta_element.find_element_by_xpath("./div[@class='dtl-wrap2']/div[@class='dtl-list']/div[@class='dtl-time']/span").text
+        answer_date = first_link_meta_element.find_element_by_xpath(
+            "./div[@class='dtl-wrap2']/div[@class='dtl-list']/div[@class='dtl-time']/span").text
 
         issue['issue_title'] = issue_title
         issue['issue_desc'] = issue_desc
@@ -92,34 +122,44 @@ class SeleniumTencentMedSpider(scrapy.Spider):
         self.log("-------------issue-------------\n%s" % issue)
 
         yield issue
+        # ------------------------------在子页面爬取数据结束，迭代到parse函数------------------------------
+
     # ------------------------------加载子页面结束------------------------------
 
-    # 抓取第一个页面的5个数据，需要点进页面再出来
-    # self.driver.find_element_by_xpath("//div[@class='layui-laypage-em']")
+    # ------------------------------发送xhr请求去调用下一个页面------------------------------
+    def xhr_to_next_page(self, response, **kwargs):
+        # 抓取第一个页面的5个数据，需要点进页面再出来
+        # self.driver.find_element_by_xpath("//div[@class='layui-laypage-em']")
 
-    # 发xhr请求https://www.99.com.cn/wenda/asklist?page=2&limit=5
-    # # 执行JS来触发XHR请求
-    # url_template = "https://www.99.com.cn/wenda/asklist?page={page_size}&limit={limit_size}"
-    # # 设置查询参数的值
-    # page_size = 2
-    # limit_size = 5
-    # # 使用字符串格式化将值填入 URL 模板
-    # query_url = url_template.format(page=page_size, limit=limit_size)
+        # 发xhr请求https://www.99.com.cn/wenda/asklist?page=2&limit=5
+        # 执行JS来触发XHR请求
+        url_template = "https://www.99.com.cn/wenda/asklist?page={page}&limit={limit}"
+        # 设置查询参数的值
+        page = 2
+        limit = 5
+        # 使用字符串格式化将值填入 URL 模板
+        query_url = url_template.format(page=page, limit=limit)
+        self.log("-------------query_url-------------\n%s" % query_url)
 
-    # 打开此js文件
-    # with open("./xhr/selenium_99comcn.js", "r", encoding='utf-8') as js_file:
-    #     xhr_script = js_file.read()
+        # 打开此js文件
+        with open("./xhr/selenium_99comcn.js", "r", encoding='utf-8') as js_file:
+            xhr_script = js_file.read()
 
-    # 发送脚本
-    # self.driver.execute_script(xhr_script)
+        # 发送脚本
+        xhr_script_result = self.driver.execute_script(xhr_script)
+        self.log("-------------xhr_script_result-------------\n%s" % xhr_script_result)
 
-    # 等待新的元素出现，例如这里使用了一个通用的div元素作为示例
-    # elements = WebDriverWait(self.driver, 10).until(
-    #     expected_conditions.presence_of_all_elements_located((By.XPATH, "//div"))
-    # )
+        # TODO 验证是否到了下一页
+        element = WebDriverWait(self.driver, 10).until(
+            expected_conditions.presence_of_element_located(
+                (By.XPATH, "//body"))
+        )
 
-    # self.log("-------------elements-------------\n%s" % elements)
+        self.log("-------------element-------------\n%s" % element)
 
-    # 在这里可以对新的元素进行操作，或者获取整个页面的内容
-    # new_page_content = self.driver.page_source
-    # self.log("-------------new_page_content-------------\n%s" % new_page_content)
+        # TODO 操作下一页，相当于回到parse
+        # new_page_content = self.driver.page_source
+        # self.log("-------------new_page_content-------------\n%s" % new_page_content)
+        yield scrapy.Request(query_url, callback=self.parse, dont_filter=True)
+
+    # ------------------------------调用下一个页面结束------------------------------
