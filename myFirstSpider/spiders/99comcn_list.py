@@ -84,10 +84,10 @@ class SeleniumTencentMedSpider(scrapy.Spider):
                 self.log("-------------rendered_html------------\n%s" % rendered_html)
                 rendered_response = HtmlResponse(url=response.url, body=rendered_html, encoding='utf-8')
                 # 从渲染后的响应对象中创建 Selector----------------------------我他妈直接传给你文本看你收不收吧！！！----------------------------
-                re_selectors = scrapy.Selector(rendered_html)
+                re_selectors = scrapy.Selector(text=str(rendered_response))
                 # 将渲染后的HTML内容传递给HtmlResponse对象
-                re_elements = rendered_response.xpath("//div[@class='isue-list']//a[@class='isue-bt']")
-                self.log("-------------re_selectors-------------\n%s" % re_elements)
+                re_elements = re_selectors.xpath("//div[@class='isue-list']//a[@class='isue-bt']")
+                self.log("-------------re_elements-------------\n%s" % re_elements)
 
                 # ----------------------------开始解析其中的5个超链接！！！----------------------------
                 # 接下来会有小于等于5个的链接，我需要遍历他们，当然这个parse只做第一层目录的链接搜索，等到搜集完大部分的url后，再发给parse_subpage来处理响应
