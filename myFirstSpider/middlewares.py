@@ -3,8 +3,14 @@
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
+# 项目自定义插件文件
+
+import random
 from scrapy import signals
-# import scrapy
+from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware
+from scrapy.http import HtmlResponse
+from scrapy.utils.project import get_project_settings
+from selenium import webdriver
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
@@ -19,12 +25,42 @@ from itemadapter import is_item, ItemAdapter
 #         cookies = spider.get_cookies()
 #         self._process_cookies(cookies, jar=jar, request=request)
 
-#         # set Cookie header
-#         request.headers.pop("Cookie", None)
-#         jar.add_cookie_header(request)
-#         self._debug_cookie(request, spider)
+# 引入selenium
+class SeleniumMiddleware:
+    def __int__(self):
+        self.driver = webdriver.Chrome()
 
-class BingchengMiddleware:
+    # def process_request(self, request, spider):
+    #     self.driver.get(request.url)
+    #     return HtmlResponse(self.driver.current_url, body=self.driver.page_source, encoding='utf-8', request=request)
+    #
+    # # 在使用完Selenium后，你需要在你的爬虫或中间件关闭时关闭WebDriver，否则可能会留下未清理的进程
+    # def spider_closed(self, spider):
+    #     self.driver.close()
+    #
+    # def __del__(self):
+    #     # 在对象销毁时关闭 WebDriver
+    #     self.driver.quit()
+
+
+# 注册随机浏览器Agent来模拟用户请求
+class RandomUserAgentMiddleware(UserAgentMiddleware):
+    def __init__(self, user_agent='Scrapy'):
+        super().__init__(user_agent)
+        settings = get_project_settings()
+        self.user_agent_list = settings.get('USER_AGENT_LIST')
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        middleware = super().from_crawler(crawler)
+        crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
+        return middleware
+
+    def process_request(self, request, spider):
+        request.headers.setdefault('User-Agent', random.choice(self.user_agent_list))
+
+
+class MyfirstspiderSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
     # passed objects.
@@ -71,7 +107,7 @@ class BingchengMiddleware:
         spider.logger.info("Spider opened: %s" % spider.name)
 
 
-class BingchengDownloaderMiddleware:
+class MyfirstspiderDownloaderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.

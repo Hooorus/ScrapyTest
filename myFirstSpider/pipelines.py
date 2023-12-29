@@ -5,15 +5,12 @@
 
 
 # useful for handling different item types with a single interface
-# from itemadapter import ItemAdapter
+
+# 项目管道文件
+
+from itemadapter import ItemAdapter
 
 
-class HaodfPipeline:
-    def open_spider(self, spider):
-        pass
-
+class MyfirstspiderPipeline:
     def process_item(self, item, spider):
         return item
-
-    def close_spider(self, spider):
-        pass
