@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 
-from myFirstSpider.items import TencentMedItem
+from lym_scrapy.myFirstSpider.items import TencentMedItem
 
 
 class SeleniumTencentMedSpider(scrapy.Spider):

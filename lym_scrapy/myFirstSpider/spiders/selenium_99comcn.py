@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 
-from myFirstSpider.items import NineNineComCnItem
+from lym_scrapy.myFirstSpider.items import NineNineComCnItem
 
 
 # ------------------------------is_next_button_disabled：没有下一个按钮返回false，有返回true------------------------------
