@@ -4,12 +4,27 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+# import scrapy
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
 
+# class BingchengCookiesMiddleware(scrapy.downloadermiddlewares.cookies.CookiesMiddleware):
+#     def process_request(self, request, spider):
+#         if request.meta.get("dont_merge_cookies", False):
+#             return
+#         cookiejarkey = request.meta.get("cookiejar")
+#         jar = self.jars[cookiejarkey]
+#         # cookies = self._get_request_cookies(jar, request)
+#         cookies = spider.get_cookies()
+#         self._process_cookies(cookies, jar=jar, request=request)
 
-class HaodfSpiderMiddleware:
+#         # set Cookie header
+#         request.headers.pop("Cookie", None)
+#         jar.add_cookie_header(request)
+#         self._debug_cookie(request, spider)
+
+class BingchengMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
     # passed objects.
@@ -56,7 +71,7 @@ class HaodfSpiderMiddleware:
         spider.logger.info("Spider opened: %s" % spider.name)
 
 
-class HaodfDownloaderMiddleware:
+class BingchengDownloaderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
@@ -78,7 +93,11 @@ class HaodfDownloaderMiddleware:
         # - or return a Request object
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
+        # cookies = spider.get_cookies()
+        # request.cookeis = cookies
+
         return None
+        # return request
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.
@@ -87,6 +106,15 @@ class HaodfDownloaderMiddleware:
         # - return a Response object
         # - return a Request object
         # - or raise IgnoreRequest
+        cookies_request = request.cookies
+        cookies_response = response.headers.get('Set-Cookie', False)
+        cookies_compare = cookies_request == cookies_response
+
+        UA_requset = request.headers.get('User-Agent')
+        UA_reponse = response.headers.get('User-Agent')
+
+        UA_compare = UA_requset == UA_reponse
+
         return response
 
     def process_exception(self, request, exception, spider):
