@@ -148,6 +148,7 @@ class NineNineComCnSpider(scrapy.Spider):
             logging.debug(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 7-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
         except Exception as e:
             self.logger.error(f"parse_subpage error occurred: {e}")
+        # TODO 去重url list
 
     # ------------------------------加载与爬取子页面的信息------------------------------
     def parse_subpage(self, response, **kwargs):
@@ -183,5 +184,5 @@ class NineNineComCnSpider(scrapy.Spider):
             issue['case_url'] = case_url
 
             self.log("-------------issue-------------\n%s" % issue)
-
+            # TODO 添加异步增量写入，防止宕机
             yield issue
