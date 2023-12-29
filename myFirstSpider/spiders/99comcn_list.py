@@ -49,7 +49,7 @@ def write_to_file(raw_data, filename, file_type, write_mode):
 
 
 # ------------------------------read_from_file：读取文件模块------------------------------
-def read_from_file(target_list_container, filename, file_type, read_mode):
+def read_from_file(target_list_container: list, filename: str, file_type: str, read_mode: str):
     try:
         with open(filename + '.' + file_type, read_mode, newline='') as csvfile:
             reader = csv.reader(csvfile)
@@ -68,57 +68,73 @@ class NineNineComCnSpider(scrapy.Spider):
     allowed_domains = ["99.com.cn/"]
     start_urls = ["https://www.99.com.cn/wenda/"]
 
-    def __init__(self, *args, **kwargs):
-        super(NineNineComCnSpider, self).__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         settings = get_project_settings()
 
         self.driver = webdriver.Chrome()
         # ------------------------------自定义变量------------------------------
+        self.url_container_file_name = "url_container"
+        self.url_container_file_type = "csv"
+        self.result_file_name = "result"
+        self.result_file_type = "csv"
+
         self.allocations = []  # 装载所有url爬取到的内容
-        self.is_first_in_parse = True  # 检验是否第一次进入网页
         self.url_container = []  # 装载所有爬取到的页面url
         self.max_crawl_data = settings.get("MAX_CRAWL_DATA_XS")  # 设置最大爬取数量
+        # self.max_crawl_data = 25  # 设置最大爬取数量
         self.log(f"-------------max_crawl_data------------\n{self.max_crawl_data}")
+        self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL init 1-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
 
     # ------------------------------开始加载根页面------------------------------
     def parse(self, response, **kwargs):
         # 得到响应的url
         self.driver.get(response.url)
         self.log(f"-------------response.url------------\n{response.url}")
-        self.is_first_in_parse = False
-        # ------------------------------第一部分：第一次进入此网站---------------------------------
-        first_link_elements = WebDriverWait(self.driver, 10).until(
-            # presence_of_all_elements_located: 获取所有匹配此xpath的元素
-            expected_conditions.presence_of_all_elements_located(
-                (By.XPATH, "//div[@class='isue-list']//a[@class='isue-bt']"))
-        )
 
-        # 接下来会有小于等于5个的链接，我需要遍历他们，当然这个parse只做第一层目录的链接搜索，等到搜集完大部分的url后，再发给parse_subpage来处理响应
-        for first_link_element in first_link_elements:
-            # 获取链接的href属性值
-            first_link_element_href = first_link_element.get_attribute("href")
-            # 得到拼接的url，并装载到url_container内
-            url = response.urljoin(first_link_element_href)
-            # 收集到一个页面urls，写入文件
-            self.url_container.append(url)
-        # 收集到一个页面urls，写入文件
-        write_to_file(self.url_container, "result", "csv", "a")
-        # 写完清空
-        self.url_container.clear()
+        # # ------------------------------第一部分：第一次进入此网站---------------------------------
+        # first_link_elements = WebDriverWait(self.driver, 10).until(
+        #     # presence_of_all_elements_located: 获取所有匹配此xpath的元素
+        #     expected_conditions.presence_of_all_elements_located(
+        #         (By.XPATH, "//div[@class='isue-list']//a[@class='isue-bt']"))
+        # )
+        # self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 1-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
+        # # 接下来会有小于等于5个的链接，我需要遍历他们，当然这个parse只做第一层目录的链接搜索，等到搜集完大部分的url后，再发给parse_subpage来处理响应
+        # for first_link_element in first_link_elements:
+        #     # 获取链接的href属性值
+        #     first_link_element_href = first_link_element.get_attribute("href")
+        #     # 得到拼接的url，并装载到url_container内
+        #     url = response.urljoin(first_link_element_href)
+        #
+        #     self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 2-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
+        #     # 收集到一个页面urls，写入文件
+        #     self.url_container.append(url)
+        # # 收集到一个页面urls，写入文件
+        # self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 3-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
+        # write_to_file(self.url_container, self.url_container_file_name, self.url_container_file_type, "w")
+        # self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 4-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
+        # # 写完清空
+        # self.url_container.clear()
 
         # ------------------------------第二部分：爬取下一个分页，疯狂循环，直到没有按钮了！！！---------------------------------
-        # 当计数器还没达到最大爬取值时 + 检查是否有“下一个”按钮
-        while (GLOBAL_COUNT_CRAWLED_URL <= self.max_crawl_data) and is_next_button_available(self.driver):
+        # 当计数器还没达到最大爬取值时（必须<，不然会多5个） + 检查是否有“下一个”按钮
+        # while (GLOBAL_COUNT_CRAWLED_URL < self.max_crawl_data) and is_next_button_available(self.driver):
+        while (GLOBAL_COUNT_CRAWLED_URL < self.max_crawl_data) and is_next_button_available(self.driver):
             # TODO 注意延时（1-5秒随机）
-            self.driver.implicitly_wait(random.uniform(1, 5))
+            # self.driver.implicitly_wait(random.uniform(1, 5))
             # 调用xhr_to_next_page处理下一个分页
-            self.log("-------------start xhr_to_next_page-------------\n")
+            self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse while 1-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
             # 找到并点击按钮
-            next_page_button = self.driver.find_element_by_xpath(
-                "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next']")
+            next_page_button = WebDriverWait(self.driver, 10).until(
+                expected_conditions.presence_of_element_located(
+                    (By.XPATH, "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next']"))
+                # self.driver.find_element_by_xpath(
+                #     "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next']")
+            )
             next_page_button.click()
+            self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse while 2-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
             # TODO 注意延时（1-5秒随机）
-            self.driver.implicitly_wait(random.uniform(1, 5))
+            self.driver.implicitly_wait(random.uniform(5, 10))
             self.log(f"-------------next_page_button-------------\n{next_page_button}")
             # 获取渲染后的页面内容
             rendered_html = self.driver.page_source
@@ -129,6 +145,7 @@ class NineNineComCnSpider(scrapy.Spider):
             # 将渲染后的HTML内容传递给HtmlResponse对象
             re_elements = re_selectors.xpath("//div[@class='isue-list']//a[@class='isue-bt']").extract()
             self.log(f"-------------re_elements-------------\n{re_elements}")
+            self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse while 3-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
             # ----------------------------开始解析其中的5个超链接元素----------------------------
             # 接下来会有小于等于5个的链接，我需要遍历他们，当然这个parse只做第一层目录的链接搜索，等到搜集完大部分的url后，再发给parse_subpage来处理响应
             for re_element in re_elements:
@@ -140,7 +157,9 @@ class NineNineComCnSpider(scrapy.Spider):
                 self.url_container.append(url)
                 self.log(f"-------------url_container-------------\n{self.url_container}")
             # 收集到一个页面urls，写入文件
-            write_to_file(self.url_container, "url_container", "csv", "a")
+            self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse while 4-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
+            write_to_file(self.url_container, self.url_container_file_name, self.url_container_file_type, "a")
+            self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse while 5-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
             # 写完清空
             self.url_container.clear()
 
@@ -148,14 +167,26 @@ class NineNineComCnSpider(scrapy.Spider):
         # write_to_file(self.url_container, "result", "csv", "a")
         # 执行完成所有任务，没有剩余页面了
         self.log("-------------first step finished-------------\n")
+        self.log(f"-------------self.url_container-------------\n{self.url_container}")
+        self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 5-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
         # 既然写入文件了已经，那么开始调用parse_subpage处理文件中的urls吧
-        self.parse_subpage(self.url_container, "url_container", "csv", "r")
+        try:
+            self.let_me_see_see_haha()
+            self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 6-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
+            yield from self.parse_subpage(response)
+            self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse 7-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
+        except Exception as e:
+            self.logger.error(f"parse_subpage error occurred: {e}")
 
     # ------------------------------加载与爬取子页面的信息------------------------------
-    def parse_subpage(self, handle_url_container, filename, file_type, read_mode, **kwargs):
+    def parse_subpage(self, response, **kwargs):
+        self.driver.get(response.url)
+        self.log(f"-------------Entering parse_subpage function, url: {response.url}-------------\n")
         # 读取文件，然后把所有urls装入handled_result_container
-        handled_result_container = read_from_file(handle_url_container, filename, file_type, read_mode)
+        handled_result_container = read_from_file(self.url_container, self.url_container_file_name,
+                                                  self.url_container_file_type, "r")
         self.log("-------------handled_result_container-------------\n%s" % handled_result_container)
+        self.log(f"-------------GLOBAL_COUNT_CRAWLED_URL parse_subpage 1-------------\n{GLOBAL_COUNT_CRAWLED_URL}")
         # 循环处理url_container里的每一个url
         for url_unit in handled_result_container:
             self.driver.get(url_unit)
@@ -193,3 +224,6 @@ class NineNineComCnSpider(scrapy.Spider):
             self.log("-------------issue-------------\n%s" % issue)
 
             yield issue
+
+    def let_me_see_see_haha(self):
+        self.log("让我康康")
