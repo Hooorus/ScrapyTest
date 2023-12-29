@@ -34,8 +34,6 @@ class BaiduMainPage(scrapy.Item):
 class NineNineComCnItem(scrapy.Item):
     issue_title = scrapy.Field(serializer=str)
     issue_desc = scrapy.Field(serializer=str)
-    issue_date = scrapy.Field(serializer=str)
-    answer_doctor = scrapy.Field(serializer=str)
     answer_analyze = scrapy.Field(serializer=str)
     answer_opinion = scrapy.Field(serializer=str)
-    answer_date = scrapy.Field(serializer=str)
+    case_url = scrapy.Field(serializer=str)

@@ -15,8 +15,25 @@ SPIDER_MODULES = ["myFirstSpider.spiders"]
 NEWSPIDER_MODULE = "myFirstSpider.spiders"
 
 
-# 添加爬取时候的用户代理
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+# 添加爬取时候的用户代理，下面是单个agent和agent list，如果要使用agent list，需要去中间件注册
+# USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+USER_AGENT_LIST = [
+    # Chrome
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36',
+    # Firefox
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
+    # Edge
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.37',
+    # Safari
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
+    # Opera
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 OPR/77.0.4054.254',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 OPR/76.0.4017.177',
+]
+
 
 # Obey robots.txt rules
 # 第二处变化，将True改为False，表示访问时不按照君子协议进行数据采集
@@ -28,24 +45,30 @@ LOG_LEVEL = 'DEBUG'
 # 激活selenium中间件，需要把第一个改成这个项目名称（不是爬虫名称）
 DOWNLOADER_MIDDLEWARES = {
    'myFirstSpider.middlewares.SeleniumMiddleware': 543,
+   'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,  # 禁用默认的Agent（启用Agent List）
+   'myFirstSpider.middlewares.RandomUserAgentMiddleware': 400,  # 处理下载中间件时的优先级, 数字越小越高 400>500（默认）
+
+   # 'scrapy.downloadermiddlewares.downloadtimeout.DownloadTimeoutMiddleware': 350,
+   # 'scrapy_fake_useragent.middleware.RandomUserAgentMiddleware': 400,
+   # 'scrapy.downloadermiddlewares.retry.RetryMiddleware': 90,
+   # 'scrapy_fake_useragent.middleware.RetryUserAgentMiddleware': 91,
+   # 'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 100,
+   # 'scrapy_fake_useragent.middleware.RandomProxyMiddleware': 101,
+   # 'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+   # 'scrapy.downloadermiddlewares.stats.DownloaderStats': 850,
+   # 'scrapy.downloadermiddlewares.httpcache.HttpCacheMiddleware': 900,
+   # 'myFirstSpider.middlewares.RandomDelayMiddleware': 910,  # 自定义的 RandomDelayMiddleware
 }
 
 # 设置最大爬取数量
-MAX_CRAWL_DATA_XS = 10
-# MAX_CRAWL_DATA_S = 50
-# MAX_CRAWL_DATA_M = 100
-# MAX_CRAWL_DATA_L = 500
-# MAX_CRAWL_DATA_XL = 1000
-# MAX_CRAWL_DATA_2XL = 2000
-# MAX_CRAWL_DATA_3XL = 3000
-# MAX_CRAWL_DATA_4XL = 4000
-# MAX_CRAWL_DATA_5XL = 5000
+MAX_CRAWL_DATA = 100
 
-
-# 自定义值
+# 设置每次geturl的休息时间区间
+SLEEP_TIME = (1, 5)
 
 # 随机下载延迟在1到3秒之间
-# DOWNLOAD_DELAY = (2, 5)
+DOWNLOAD_DELAY = 1.5
+
 # 启用或禁用对 DOWNLOAD_DELAY 的随机化
 # RANDOMIZE_DOWNLOAD_DELAY = True
 # 每个域名同时只能进行一个请求

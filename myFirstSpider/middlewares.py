@@ -5,8 +5,11 @@
 
 # 项目自定义插件文件
 
+import random
 from scrapy import signals
+from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware
 from scrapy.http import HtmlResponse
+from scrapy.utils.project import get_project_settings
 from selenium import webdriver
 
 # useful for handling different item types with a single interface
@@ -29,6 +32,23 @@ class SeleniumMiddleware:
     # def __del__(self):
     #     # 在对象销毁时关闭 WebDriver
     #     self.driver.quit()
+
+
+# 注册随机浏览器Agent来模拟用户请求
+class RandomUserAgentMiddleware(UserAgentMiddleware):
+    def __init__(self, user_agent='Scrapy'):
+        super().__init__(user_agent)
+        settings = get_project_settings()
+        self.user_agent_list = settings.get('USER_AGENT_LIST')
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        middleware = super().from_crawler(crawler)
+        crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
+        return middleware
+
+    def process_request(self, request, spider):
+        request.headers.setdefault('User-Agent', random.choice(self.user_agent_list))
 
 
 class MyfirstspiderSpiderMiddleware:
