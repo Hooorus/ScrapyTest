@@ -16,7 +16,7 @@ NEWSPIDER_MODULE = "haodf.spiders"
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "haodf (+http://www.yourdomain.com)"
 
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+# USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -31,9 +31,8 @@ CONCURRENT_REQUESTS = 2
 # See also autothrottle settings and docs
 DOWNLOAD_DELAY = 2
 
-COOKIES_ENABLED = True
 
-DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
+# DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -49,6 +48,8 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 #    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 #    "Accept-Language": "en",
 #}
+COOKIES_ENABLED = False 
+COOKIES_DEBUG = True
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
@@ -56,15 +57,16 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 #    "haodf.middlewares.HaodfSpiderMiddleware": 543,
 #}
 
-SPIDER_MIDDLEWARES = {
-    "haodf.middlewares.CookiesMiddleware": 543,
-}
+
+# SPIDER_MIDDLEWARES = {
+#     "haodf.middlewares.BingchengCookiesMiddleware": 1,
+# }
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    "haodf.middlewares.HaodfDownloaderMiddleware": 543,
-#}
+# DOWNLOADER_MIDDLEWARES = {
+#   "haodf.middlewares.BingchengDownloaderMiddleware": 500,
+# }
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html

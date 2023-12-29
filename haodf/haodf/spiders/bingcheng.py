@@ -21,42 +21,52 @@ def line_str(str, cnt = 20, add = True):
     else:
         return str
 
+def get_current_dir():
+    def fake():
+        pass
+    return os.path.abspath(os.path.dirname(fake.__code__.co_filename))
+
 def cookeis_check(func):
     def wrapper(self, *args, **kwargs):
         if self.cookies is None:
             self.driver = self.get_driver()
             self.log(line_str(f"calling {func}", 10))
-            self.driver.get("https://passport.haodf.com/nusercenter/showlogin")
-            
-            normal_login = self.driver.find_element(By.XPATH, "//*[text()='普通登录']")
-            normal_login.click()
-            sleep(0.5)
+            cnt = 1
+            while True:
+                self.driver.get("https://passport.haodf.com/nusercenter/showlogin")
+                self.log(line_str(f" login for {cnt} time")) 
+                normal_login = self.driver.find_element(By.XPATH, "//*[text()='普通登录']")
+                normal_login.click()
+                sleep(0.5)
 
-            user_name = self.driver.find_element(By.XPATH, r'//*/input[@placeholder="用户名/手机号/邮箱"]')
-            user_name.click()
-            user_name.send_keys('15355049749')
-            sleep(0.5)
+                user_name = self.driver.find_element(By.XPATH, r'//*/input[@placeholder="用户名/手机号/邮箱"]')
+                user_name.click()
+                user_name.send_keys('15355049749')
+                sleep(0.5)
 
-            password = self.driver.find_element(By.XPATH, r'//*/input[@placeholder="请输入密码"]')
-            password.click()
-            password.send_keys('Ingru2023')
-            sleep(0.5)
+                password = self.driver.find_element(By.XPATH, r'//*/input[@placeholder="请输入密码"]')
+                password.click()
+                password.send_keys('Ingru2023')
+                sleep(0.5)
 
-            box = self.driver.find_element(By.XPATH, r'//*/div[@class="status_icon unselected"]')
-            box.click()
-            sleep(0.5)
+                box = self.driver.find_element(By.XPATH, r'//*/div[@class="status_icon unselected"]')
+                box.click()
+                sleep(0.5)
 
-            submit = self.driver.find_element(By.XPATH, r'//*/button[@class="submit"]')
-            submit.click()
-            sleep(0.5)
+                submit = self.driver.find_element(By.XPATH, r'//*/button[@class="submit"]')
+                submit.click()
+                sleep(0.5)
+                
+                # 随机出现的验证码窗口
+                try:
+                    self.driver.find_element(By.XPATH, r'//*/div[@class="geetest_panel_box geetest_panelshowslide"]')
+                    cnt += 1
+                except Exception as e:
+                    print(e)
+                    break
             self.cookies = self.driver.get_cookies()
         return func(self, *args, **kwargs)
     return wrapper
-
-def get_current_dir():
-    def fake():
-        pass
-    return os.path.abspath(os.path.dirname(fake.__code__.co_filename))
 
 
 class BingchengSpider(scrapy.Spider):
@@ -67,7 +77,7 @@ class BingchengSpider(scrapy.Spider):
     ]
 
     cookies = None
-    cookies_file = "d:/tests/cookies-haodf-com.txt"
+    # cookies_file = "d:/tests/cookies-haodf-com.txt"
     store_csv = "d:/test/bingcheng.csv"
     store_json = "d:/test/bingcheng.json"
     body_file = "d:/test/body.json"
@@ -83,11 +93,11 @@ class BingchengSpider(scrapy.Spider):
     ]
     stealthjs = os.path.join(bin_dir, "stealth.min.js").replace("\\", "/")
     chromedriver = os.path.join(bin_dir, "chromedriver.exe").replace("\\", "/")
+    UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
     
     custom_settings = {
-        'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter',
+        "USER_AGENT": UserAgent
     }
-
 
     def __init__(self, *args, **kwargs):
         self.chrome = None
@@ -105,6 +115,8 @@ class BingchengSpider(scrapy.Spider):
             os.remove(self.store_csv)
         if os.path.exists(self.store_json):
             os.remove(self.store_json)
+            
+        self.cookies = self.get_cookies()
 
         super().__init__(*args, **kwargs)
 
@@ -119,6 +131,7 @@ class BingchengSpider(scrapy.Spider):
         options.add_argument('--ignore-ssl-errors')
         options.add_argument('--ssl-protocol=any')
         options.add_argument('--headless')
+        options.add_argument('--user-agent={self.UserAgent}')
 
         service = Service(executable_path=self.chromedriver)
         driver = webdriver.Chrome(options=options, service=service)
@@ -128,6 +141,19 @@ class BingchengSpider(scrapy.Spider):
             "source": js
         })
         return driver
+   
+    @cookeis_check
+    def get_cookies(self):
+        return self.cookies 
+    
+    @cookeis_check
+    def start_requests(self):
+        yield scrapy.Request(self.start_urls[0],
+                             headers={
+                                'User-Agent': self.UserAgent
+                             },
+                             cookies=self.get_cookies(), 
+                             callback=self.parse) 
 
     @cookeis_check
     def parse(self, response):
@@ -150,9 +176,12 @@ class BingchengSpider(scrapy.Spider):
             # TODO: yield response.follow(href, self.parse_disease)
             # https://docs.scrapy.org/en/latest/topics/debug.html?highlight=scrapy.request#debugging-spiders
             yield scrapy.Request(url=href,
-                                 cookies=self.cookies,
-                                 callback=self.parse_disease,
-                                 meta=dict(disease=disease, incoming_url=url))
+                                cookies=self.get_cookies(),
+                                headers={
+                                    'User-Agent': self.UserAgent
+                                },
+                                callback=self.parse_disease,
+                                meta=dict(disease=disease, incoming_url=url))
 
     @cookeis_check
     def parse_disease(self, response):
@@ -170,22 +199,22 @@ class BingchengSpider(scrapy.Spider):
         except Exception:
             disease = None
             incoming_url = None
-
         if not disease:
             self.log(line_str(url + " is not right for disease"))
             return
         if not incoming_url:
             self.log(line_str(url + " is not right for incoming_url"))
             return
-
         self.log(line_str(disease + " from " + incoming_url))
-
         for each in response.xpath(answer_xpath):
             href = each.xpath(".//@href").extract_first()
             yield scrapy.Request(
                     url=href,
-                    callback=self.parse_answer_pre,
-                    cookies=self.cookies,
+                    callback=self.parse_answer,
+                    cookies=self.get_cookies(),
+                    headers={
+                        'User-Agent': self.UserAgent
+                    },
                     errback=lambda err: self.log("===== Error ====", err),
                     meta=dict(disease=disease, incoming_url=url))
 
@@ -205,6 +234,7 @@ class BingchengSpider(scrapy.Spider):
             if txt.strip() == '下一页':
                 href = pnum1_res.xpath(".//@href").extract_first()
 
+
         if href is not None:
             if href.startswith("/"):
                 href = "https://www.haodf.com" + href
@@ -212,7 +242,10 @@ class BingchengSpider(scrapy.Spider):
             yield scrapy.Request(
                     url=href,
                     callback=self.parse_disease,
-                    cookies=self.cookies,
+                    cookies=self.get_cookies(),
+                    headers={
+                        'User-Agent': self.UserAgent
+                    },
                     errback=lambda err: self.log("===== Error ====", err),
                     meta=dict(disease=disease, incoming_url=url))
         self.visited_diseases.append(url)
@@ -223,12 +256,13 @@ class BingchengSpider(scrapy.Spider):
     # https://www.haodf.com/bingcheng/8898021335.html
     # https://www.haodf.com/bingcheng/8898019356.html
     @cookeis_check
-    def parse_answer_pre(self, response):
+    def parse_answer(self, response):
         """
         在最后parse之前， 加入cookies
         """
         url = response.url
-        if url in self.visited_answers or not url:
+        # cookies = response.headers.get('Set-Cookie')
+        if url in self.visited_answers:
             return
         try:
             meta = response.meta
@@ -236,27 +270,35 @@ class BingchengSpider(scrapy.Spider):
             incoming_url = meta['incoming_url']
         except Exception:
             disease = 'Test'
-            incoming_url = url 
+            incoming_url = url
 
-        if response.status == 302:
-            with open("d:/tests/body.html", 'wb') as f:
-                f.write(response.body)
-            with open("d:/tests/body.txt", 'w') as f:
-                f.write(response.text)
-            self.log('======= Saved response body for 302 redirect to login ===========')
-            return
-
-        self.log(line_str(disease + " from " + incoming_url))
-        diseaseinfo_xpath = "//p[@class='diseaseinfo']//span"
-        suggestions_xpath = "//section[@class='suggestions marginLeft0']//span"
-        diseaseinfo = response.xpath(diseaseinfo_xpath).xpath(".//text()").extract()
-        suggestions = response.xpath(suggestions_xpath).xpath(".//text()").extract()
 
         item = AnswerItem()
         item['url'] = url
         item['disease'] = disease
-        item['diseaseinfo'] = diseaseinfo
-        item['suggestions'] = suggestions
-        self.log(item)
-        self.visited_answers.append(url)
-        yield item
+        if response.status == 302:
+            # with open("d:/tests/body.html", 'wb') as f:
+            #     f.write(response.body)
+            # with open("d:/tests/body.txt", 'w') as f:
+            #     f.write(response.text)
+            self.log('======= Saved response body for 302 redirect to login ===========')
+            yield scrapy.Request(url, 
+                                 callback=self.parse_answer,
+                                    headers={
+                                        'User-Agent': self.UserAgent
+                                    },
+                                 cookies=self.get_cookies())
+            # item['diseaseinfo'] = [] 
+            # item['suggestions'] = [] 
+        else:
+            self.log(line_str(disease + " from " + incoming_url))
+            diseaseinfo_xpath = "//p[@class='diseaseinfo']//span"
+            suggestions_xpath = "//section[@class='suggestions marginLeft0']//span"
+            diseaseinfo = response.xpath(diseaseinfo_xpath).xpath(".//text()").extract()
+            suggestions = response.xpath(suggestions_xpath).xpath(".//text()").extract()
+
+            item['diseaseinfo'] = diseaseinfo[1:]
+            item['suggestions'] = suggestions
+            # self.log(item)
+            self.visited_answers.append(url)
+            yield item
