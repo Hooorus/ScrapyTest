@@ -10,6 +10,7 @@ from scrapy.utils.project import get_project_settings
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 
@@ -36,7 +37,6 @@ def is_next_button_available(driver):
         return False  # 找到了下一个按钮
     except TimeoutException:
         return True  # 找不到下一个按钮
-
 
 # mode: r 只读; w （自动新建）覆盖; a （自动新建）追加; b 二进制，如rb wb; x （独占创建）FileExistsError; + 读写，如r+ w+; t 文本，如rt wt
 # ------------------------------write_to_file：写入文件模块------------------------------
@@ -95,7 +95,16 @@ class NineNineComCnSpider(scrapy.Spider):
         self.url_container = []  # 装载所有爬取到的页面url
         self.max_crawl_data = settings.get("MAX_CRAWL_DATA")  # 设置最大爬取数量
         self.sleep_time = settings.get("SLEEP_TIME")  # 设置每次geturl的休息时间
-        self.async_queue = asyncio.Queue()  # 设置处理爬取到url时候的初始化队列进行异步输出结果，而不是一次性
+        # self.async_queue = asyncio.Queue()  # 设置处理爬取到url时候的初始化队列进行异步输出结果，而不是一次性
+        # self.proxy_pool_urls = self.settings.get('PROXY_POOL_URLS')  # 在初始化中获取代理池的配置信息
+
+        # self.proxy_url = settings.get("PROXY_POOL_URL")
+        # chrome_options = Options()
+        # chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
+
+        # ------------------------------带参加入------------------------------
+        # self.driver = webdriver.Chrome(options=chrome_options)
+
         logging.debug(f"\033[34m=====max_crawl_data=====\n{self.max_crawl_data}\033[0m")
         logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL init 1=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
 
@@ -145,24 +154,29 @@ class NineNineComCnSpider(scrapy.Spider):
 
         # write_to_file(self.url_container, "result", "csv", "a")
         # 执行完成所有任务，没有剩余页面了
-        logging.debug("\033[34m=====first step finished=====\n\033[0m")
+        logging.info("\033[32m=====Crawler System Finished=====\n\033[0m")
         logging.debug(f"\033[34m=====self.url_container=====\n{self.url_container}\033[0m")
         logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse 5=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
         # 调用parse_subpage来处理已写入container的url列表
         try:
             logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse 6=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
             yield from self.parse_subpage(response)
-            # 关闭异步队列
-            self.async_queue.join()
-            logging.debug(
-                f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse 7=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
+
+            # await asyncio.gather(
+            #     self.parse_subpage(response),
+            #     self.async_parse_crawled_url()
+            # )
+
+            # self.async_queue.join()  # 关闭异步队列
+            logging.info(
+                f"\033[32m=====Async Queue System Finished=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
         except Exception as e:
             logging.error(f"\033[31mParse_subpage Error Occurred: {e}\033[0m")
 
     # ------------------------------加载与爬取子页面的信息------------------------------
     def parse_subpage(self, response, **kwargs):
         # self.driver.get(response.url)
-        logging.info(f"\033[34m=====Entering parse_subpage function, url: {response.url}=====\n\033[0m")
+        logging.info(f"\033[32m=====Entering parse_subpage function, url: {response.url}=====\n\033[0m")
         # 读取文件，然后把所有urls装入handled_result_container
         handled_result_container = read_from_file(self.url_container, self.url_container_file_name,
                                                   self.url_container_file_type, "r")
@@ -194,15 +208,21 @@ class NineNineComCnSpider(scrapy.Spider):
             issue['case_url'] = case_url
 
             logging.info(f"\033[32m=====issue=====\n{issue}\033[0m")
-            # TODO 添加异步增量写入，防止宕机
-            asyncio.ensure_future(self.async_queue.put(issue))
+            # 添加异步增量写入，防止宕机数据一起丢失
+            # asyncio.ensure_future(self.async_queue.put(issue))
             yield issue
 
-    # ------------------------------异步执行url输出------------------------------
-    async def async_parse_crawled_url(self):
-        while True:
-            issue = await self.async_queue.get()
-            # 写入到文件
-            with open('output.txt', 'a', encoding='utf-8') as file:
-                file.write(str(issue) + '\n')
-            self.async_queue.task_done()
+    # ------------------------------异步执行url输出最终结果------------------------------
+    # TODO 异步调用需要解决
+    # async def async_parse_crawled_url(self):
+    #     logging.info("\033[32m=====Entering async_parse_crawled_url=====\n\033[0m")
+    #     while True:
+    #         issue = await self.async_queue.get()
+    #         # 写入到文件
+    #         with open('result.csv', 'a', encoding='utf-8') as csvfile:
+    #             writer = csv.DictWriter(csvfile, fieldnames=[''])
+    #             writer.writeheader()
+    #             for url_unit in raw_data:
+    #                 writer.writerow({"": url_unit})
+    #             csvfile.write(str(issue) + '\n')
+    #         self.async_queue.task_done()

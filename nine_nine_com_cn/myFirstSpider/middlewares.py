@@ -11,9 +11,12 @@ from scrapy.downloadermiddlewares.useragent import UserAgentMiddleware
 from scrapy.http import HtmlResponse
 from scrapy.utils.project import get_project_settings
 from selenium import webdriver
+# from scrapy.downloadermiddlewares.httpproxy import HttpProxyMiddleware
+
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
+
 
 # class BingchengCookiesMiddleware(scrapy.downloadermiddlewares.cookies.CookiesMiddleware):
 #     def process_request(self, request, spider):
@@ -24,6 +27,24 @@ from itemadapter import is_item, ItemAdapter
 #         # cookies = self._get_request_cookies(jar, request)
 #         cookies = spider.get_cookies()
 #         self._process_cookies(cookies, jar=jar, request=request)
+
+# class RandomProxyMiddleware(HttpProxyMiddleware):
+#     def __init__(self, proxy_list):
+#         self.proxy_list = proxy_list
+#         super().__init__()
+#
+#     @classmethod
+#     def from_crawler(cls, crawler):
+#         middleware = super(RandomProxyMiddleware, cls).from_crawler(crawler)
+#         settings = crawler.settings
+#         proxy_list = settings.getlist('PROXY_POOL_URLS', [])
+#         return cls(proxy_list)
+#
+#     def process_request(self, request, spider):
+#         if self.proxy_list:
+#             proxy = random.choice(self.proxy_list)
+#             request.meta['proxy'] = proxy
+
 
 # 引入selenium
 class SeleniumMiddleware:

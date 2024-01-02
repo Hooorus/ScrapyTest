@@ -47,27 +47,35 @@ DOWNLOADER_MIDDLEWARES = {
    'myFirstSpider.middlewares.SeleniumMiddleware': 543,
    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,  # 禁用默认的Agent（启用Agent List）
    'myFirstSpider.middlewares.RandomUserAgentMiddleware': 400,  # 处理下载中间件时的优先级, 数字越小越高 400>500（默认）
-
-   # 'scrapy.downloadermiddlewares.downloadtimeout.DownloadTimeoutMiddleware': 350,
-   # 'scrapy_fake_useragent.middleware.RandomUserAgentMiddleware': 400,
-   # 'scrapy.downloadermiddlewares.retry.RetryMiddleware': 90,
-   # 'scrapy_fake_useragent.middleware.RetryUserAgentMiddleware': 91,
-   # 'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 100,
-   # 'scrapy_fake_useragent.middleware.RandomProxyMiddleware': 101,
-   # 'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
-   # 'scrapy.downloadermiddlewares.stats.DownloaderStats': 850,
-   # 'scrapy.downloadermiddlewares.httpcache.HttpCacheMiddleware': 900,
-   # 'myFirstSpider.middlewares.RandomDelayMiddleware': 910,  # 自定义的 RandomDelayMiddleware
+   # 'myFirstSpider.middlewares.RandomProxyMiddleware': 543,  # 处理下载中间件时的优先级, 数字越小越高 400>500（默认）
 }
 
+PROXY_POOL_URLS = [
+    'http://202.182.127.64:3128',
+    # 'http://localhost',
+    # 'http://proxy3.example.com',
+    # 'http://proxy4.example.com',
+    # 'http://proxy5.example.com',
+]
+
+PROXY_POOL_URL = 'http://202.182.127.64:3128'
+
 # 设置最大爬取数量
-MAX_CRAWL_DATA = 100
+MAX_CRAWL_DATA = 10
 
 # 设置每次geturl的休息时间区间
 SLEEP_TIME = (1, 5)
 
 # 随机下载延迟在1到3秒之间
 DOWNLOAD_DELAY = 1.5
+
+# 输出结果格式
+FEEDS = {
+    'result.csv': {
+        'format': 'csv',
+        'overwrite': True,
+    },
+}
 
 # 启用或禁用对 DOWNLOAD_DELAY 的随机化
 # RANDOMIZE_DOWNLOAD_DELAY = True

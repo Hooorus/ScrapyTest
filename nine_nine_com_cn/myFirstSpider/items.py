@@ -37,3 +37,10 @@ class NineNineComCnItem(scrapy.Item):
     answer_analyze = scrapy.Field(serializer=str)
     answer_opinion = scrapy.Field(serializer=str)
     case_url = scrapy.Field(serializer=str)
+
+
+class SpringRainDoctorItem(scrapy.Item):
+    issue_title = scrapy.Field(serializer=str)
+    issue_desc = scrapy.Field(serializer=str)
+    answer = scrapy.Field(serializer=str)
+    case_url = scrapy.Field(serializer=str)
