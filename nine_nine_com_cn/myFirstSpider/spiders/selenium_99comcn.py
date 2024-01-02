@@ -52,7 +52,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
             # ------------------------------第三部分：多进入此网站---------------------------------
             # 在parse中获得重渲染后的响应对象
             if not self.is_first_in_parse:
-                # TODO 小心meta
+                # T小心meta
                 rendered_response = response.text
                 self.log(f"-------------rendered_response------------\n{rendered_response}")
                 # 从渲染后的响应对象中创建 Selector
@@ -96,7 +96,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
                 # next_page_button = self.driver.find_element_by_xpath(
                 #     "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next']")
                 # next_page_button.click()
-                # TODO 小心时间
+                # 心时间
                 # self.driver.implicitly_wait(3)
                 # rendered_html = self.driver.page_source
                 # rendered_response = HtmlResponse(url=response.url, body=rendered_html, encoding='utf-8')
@@ -169,7 +169,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
         # xhr_script_result = self.driver.execute_script(xhr_script)
         # self.log("-------------xhr_script_result-------------\n%s" % xhr_script_result)
 
-        # TODO 验证是否到了下一页
+        # 验证是否到了下一页
         # element = WebDriverWait(self.driver, 10).until(
         #     expected_conditions.presence_of_element_located(
         #         (By.XPATH, "//body"))
@@ -177,7 +177,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
         #
         # self.log("-------------element-------------\n%s" % element)
 
-        # TODO 操作下一页，相当于回到parse
+        # 操作下一页，相当于回到parse
         # new_page_content = self.driver.page_source
         # self.log("-------------new_page_content-------------\n%s" % new_page_content)
         # yield scrapy.Request(query_url, callback=self.parse, dont_filter=True)
@@ -207,7 +207,7 @@ class SeleniumTencentMedSpider(scrapy.Spider):
             "./div[@class='dtl-wrap']/div[@class='dtl-top']//div[@class='dtl-info']/span[1]").text
         answer_doctor = (str(first_link_meta_element.find_element_by_xpath("//dl[@class='dtl-ys']/dd/b").text) +
                          str(first_link_meta_element.find_element_by_xpath("//dl[@class='dtl-ys']/dd/p").text))
-        # TODO 把病情分析和处理意见给我搞掉
+        # 把病情分析和处理意见给我搞掉
         answer_analyze = first_link_meta_element.find_element_by_xpath("//div[@class='dtl-reply']/p").text
         answer_opinion = first_link_meta_element.find_element_by_xpath("//div[@class='dtl-reply']/p[2]").text
         answer_date = first_link_meta_element.find_element_by_xpath(
