@@ -18,6 +18,8 @@ from nine_nine_com_cn.myFirstSpider.items import NineNineComCnItem
 
 # 全局变量，记录爬取到的url数量
 GLOBAL_COUNT_CRAWLED_URL = 0
+
+
 # log等级定义
 # Debug (调试) - 蓝色 logging.debug("\033[34mDebug message\033[0m")
 # Info (信息) - 绿色 logging.info("\033[32mInfo message\033[0m")
@@ -37,6 +39,7 @@ def is_next_button_available(driver):
         return False  # 找到了下一个按钮
     except TimeoutException:
         return True  # 找不到下一个按钮
+
 
 # mode: r 只读; w （自动新建）覆盖; a （自动新建）追加; b 二进制，如rb wb; x （独占创建）FileExistsError; + 读写，如r+ w+; t 文本，如rt wt
 # ------------------------------write_to_file：写入文件模块------------------------------
@@ -69,7 +72,8 @@ def read_from_file(target_list_container: list, filename: str, file_type: str, r
                 if url_pattern.match(row[0]):  # 如果匹配的话
                     target_list_container.append(row[0])  # 装到一个list中
                     logging.debug(f"\033[34m=====Regex one row & appended to {target_list_container}=====\n\033[0m")
-            logging.info(f"\033[32m=====Finished loading {filename}.{file_type} to {target_list_container}=====\n\033[0m")
+            logging.info(
+                f"\033[32m=====Finished loading {filename}.{file_type} to {target_list_container}=====\n\033[0m")
             return target_list_container
     except Exception as e:
         logging.error(
@@ -116,13 +120,15 @@ class NineNineComCnSpider(scrapy.Spider):
         # 当计数器还没达到最大爬取值时（必须<，不然会多5个） + 检查是否有“下一个”按钮
         while (GLOBAL_COUNT_CRAWLED_URL < self.max_crawl_data) and is_next_button_available(self.driver):
             # 调用xhr_to_next_page处理下一个分页
-            logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 1=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
+            logging.debug(
+                f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 1=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
             next_page_button = WebDriverWait(self.driver, 10).until(  # 找到并点击按钮
                 expected_conditions.presence_of_element_located(
                     (By.XPATH, "//div[@id='layui-laypage-1']/a[@class='layui-laypage-next']"))
             )
             next_page_button.click()
-            logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 2=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
+            logging.debug(
+                f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 2=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
             # 注意延时（1-5秒随机）
             self.driver.implicitly_wait(random.uniform(1, 3))
             logging.debug(f"\033[34m=====next_page_button=====\n{next_page_button}\033[0m")
@@ -135,7 +141,8 @@ class NineNineComCnSpider(scrapy.Spider):
             # 将渲染后的HTML内容传递给HtmlResponse对象
             re_elements = re_selectors.xpath("//div[@class='isue-list']//a[@class='isue-bt']").extract()
             logging.debug(f"\033[34m=====re_elements=====\n{re_elements}\033[0m")
-            logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 3=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
+            logging.debug(
+                f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 3=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
             # ----------------------------开始解析其中的5个超链接元素----------------------------
             # 接下来会有小于等于5个的链接，我需要遍历他们，当然这个parse只做第一层目录的链接搜索，等到搜集完大部分的url后，再发给parse_subpage来处理响应
             for re_element in re_elements:
@@ -146,9 +153,11 @@ class NineNineComCnSpider(scrapy.Spider):
                 self.url_container.append(url)
                 logging.debug(f"\033[34m=====url_container=====\n{self.url_container}\033[0m")
             # 收集到一个页面urls，写入文件
-            logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 4=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
+            logging.debug(
+                f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 4=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
             write_to_file(self.url_container, self.url_container_file_name, self.url_container_file_type, "a")
-            logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 5=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
+            logging.debug(
+                f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL parse while 5=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
             # 写完清空
             self.url_container.clear()
 
