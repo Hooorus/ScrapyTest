@@ -102,12 +102,12 @@ class NineNineComCnSpider(scrapy.Spider):
         # self.async_queue = asyncio.Queue()  # 设置处理爬取到url时候的初始化队列进行异步输出结果，而不是一次性
         # self.proxy_pool_urls = self.settings.get('PROXY_POOL_URLS')  # 在初始化中获取代理池的配置信息
 
-        # self.proxy_url = settings.get("PROXY_POOL_URL")
-        # chrome_options = Options()
-        # chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
-
-        # ------------------------------带参加入------------------------------
-        # self.driver = webdriver.Chrome(options=chrome_options)
+        # ------------------------------代理区------------------------------
+        self.proxy_url = settings.get("PROXY_POOL_URL")
+        chrome_options = Options()
+        chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
+        self.driver = webdriver.Chrome(options=chrome_options)
+        # -----------------------------------------------------------------
 
         logging.debug(f"\033[34m=====max_crawl_data=====\n{self.max_crawl_data}\033[0m")
         logging.debug(f"\033[34m=====GLOBAL_COUNT_CRAWLED_URL init 1=====\n{GLOBAL_COUNT_CRAWLED_URL}\033[0m")
