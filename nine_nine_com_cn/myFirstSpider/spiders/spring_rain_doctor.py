@@ -57,30 +57,21 @@ class SpringRainDoctorSpider(scrapy.Spider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         settings = get_project_settings()
+        self.url_container = []
 
         # ------------------------------代理区------------------------------
-        self.driver = webdriver.Chrome()
-        # self.proxy_url = settings.get("PROXY_POOL_URL")
-        # chrome_options = Options()
-        # chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
-        # self.driver = webdriver.Chrome(options=chrome_options)
+        # self.driver = webdriver.Chrome()
+        self.proxy_url = settings.get("PROXY_POOL_URL")
+        chrome_options = Options()
+        chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
+        self.driver = webdriver.Chrome(options=chrome_options)
 
         # -----------------------------------------------------------------
-        self.cookies = self.driver.get_cookies()
+        # self.cookies = self.driver.get_cookies()
 
         self.click_time = random.uniform(settings.get("CLICK_TIME")[0], settings.get("CLICK_TIME")[1])  # 设置每次点击按钮的休息时间
 
-    # def start_requests(self):
-    #   # 发送请求，设置代理 IP 为空
-    # yield scrapy.Request(url='http://ip.chinaz.com/getip.aspx', dont_filter=True)
-
     def parse(self, response, **kwargs):
-
-        # --------------解析响应，提取IP信息--------------
-        # print(response.meta.get('proxy'))
-
-        # ------------------------------------------
-
         self.driver.get(response.url)
         logging.debug(f"\033[34m=====response.url=====\n{response.url}\033[0m")
 
@@ -127,71 +118,74 @@ class SpringRainDoctorSpider(scrapy.Spider):
         logging.info("\033[32m=====仅显示可咨询医生 Button Clicked=====\n\033[0m")
 
         # -------------------至此，按年进入需要爬取的页面完成，接下来是对医生名片的操作（第二级）-------------------
+        loop = 1
+        while is_next_button_available(self.driver) and loop < 3:  # 判断是否还有下一页
+            loop += 1
+            next_page_btn = WebDriverWait(self.driver, 5).until(
+                expected_conditions.presence_of_element_located(
+                    (By.XPATH, "//div[@class='pagebar']/a[@class='next']"))
+            )
+            next_page_btn.click()
 
-        while is_next_button_available(self.driver):  # 判断是否还有下一页
             doctor_cards_list = WebDriverWait(self.driver, 5).until(  # 判定当前页面是否存在医生卡片
                 expected_conditions.presence_of_all_elements_located(
                     (By.XPATH, "//div[@class='doctor-list']/div[contains(@class, 'doctor-info-item')]"))
             )
-            count = 0
+            # test
+            doctor_cards_list = doctor_cards_list[:3]
             # TODO 点击进入详情，找到疾病list
             for doctor_card in doctor_cards_list:
-                # count += 1
-                # if count > 4:
-                #     break
                 time.sleep(self.click_time)  # 这个地方click的太快了，导致服务器429，需要加个睡眠时间！
-                logging.debug(f"\033[34m=====Doctor Cards List: {doctor_cards_list}=====\n\033[0m")
+                logging.debug(f"\033[34m=====Doctor Cards List: {doctor_cards_list}\n\033[0m")
                 doctor_detail_link = doctor_card.find_element_by_xpath(
                     "./div[@class='detail']/div[@class='des-item']/a[@class='name-wrap']")
-                logging.debug(f"\033[34m=====Current Doctor Card: {doctor_detail_link}=====\n\033[0m")
-                doctor_detail_link.click()  # 点击进入当前循环的医生卡片 TODO tab重复
+                logging.debug(f"\033[34m=====Current Doctor Card: {doctor_detail_link}\n\033[0m")
+                # doctor_detail_link.click()  # 点击进入当前循环的医生卡片 FIXME tab重复
                 self.driver.implicitly_wait(2)
                 # url = self.driver.current_url
-                url = response.urljoin(doctor_detail_link.get_attribute("href"))
-                logging.info(f"\033[32m=====Jump Into Doctor:{url}=====\n\033[0m")
-                # url = response.urljoin(doctor_detail_link.get_attribute("href"))
-                # 目前已打开了特定医生的页面，现在我们需要切换到这个医生的页面进行爬取，yield到parse_doctor_page函数
-                # yield scrapy.Request(url, callback=self.parse_doctor_page, meta={'driver': self.driver}, dont_filter=True)
-                # 这里不要用url进行访问，需要使用窗口句柄进行访问
-                # switch_to_tab_window(self.driver, 1)  # 切换页面到医生页面
+                incoming_url = response.urljoin(doctor_detail_link.get_attribute("href"))
+                logging.info(f"\033[32m=====Jump Into Doctor:{incoming_url}\n\033[0m")
                 logging.info("\033[32m=====Do Parsing parse_doctor_page Function=====\n\033[0m")
-                # self.cookies = self.driver.get_cookies()
-                yield from self.parse_doctor_page(response, url)  # ↓↓↓↓↓↓↓开始迭代↓↓↓↓↓↓↓
-                # scrapy_response = HtmlResponse(url=url, body=self.driver.page_source, encoding='utf-8')
-                # yield scrapy.Request(url=url, callback=self.parse_doctor_page, dont_filter=True)
 
-    # 2. 处理doctor页面。当前：特定医生页面
-    def parse_doctor_page(self, response, doctor_url, **kwargs):
-        logging.info(f"\033[32m=====Jump Into parse_doctor_page Function: {doctor_url}=====\n\033[0m")
-        self.driver.get(doctor_url)  # TODO 这里导致主页变成医生名字
-        # TODO selenium和scrapy的API要制定使用+规范，否则会出现奇奇怪怪的bug
+                self.url_container.append(incoming_url)
+                # yield scrapy.Request(incoming_url, callback=self.parse_doctor_page,
+                #                      meta={'incoming_url': incoming_url}, dont_filter=True)
+                # FIXME 先截断吧，收集各个医生的url，放入文件中，给下面的函数独立处理
+        logging.info(f"\033[32m=====URL CONTAINER: {self.url_container}\n\033[0m")
+
+    # 2. 独立处理doctor页面。当前：特定医生页面
+    def parse_doctor_page(self, response, **kwargs):
+        doctor_url = response.meta.get('incoming_url')
+        logging.info(f"\033[32m=====Jump Into parse_doctor_page Function: {doctor_url}\n\033[0m")
+        self.driver.get(doctor_url)
+        # FIXME selenium和scrapy的API要制定使用+规范，否则会出现奇奇怪怪的bug
         # switch_to_tab_window(self.driver, 0)  # 切换页面到主页面
         logging.info("\033[32m=====Do Parsing parse_issue_page Function=====\n\033[0m")
 
         current_url = self.driver.current_url
-        logging.info(f"\033[32m=====parse_doctor_page Current URL: {current_url}=====\n\033[0m")
-        issue_list = self.driver.find_elements_by_xpath("//div[@class='hot-qa-item']//a")  # TODO 问题部分：找不到元素
+        logging.info(f"\033[32m=====parse_doctor_page Current URL: {current_url}\n\033[0m")
+        issue_list = self.driver.find_elements_by_xpath("//div[@class='hot-qa-item']//a")  # FIXME 问题部分：找不到元素
 
         for issue in issue_list:
             time.sleep(self.click_time)  # 睡一觉
-            issue.click()  # 点击进入当前特定医生的特定issue
-            self.driver.implicitly_wait(2)
-            url = response.urljoin(issue.get_attribute("href"))
-            logging.info(f"\033[32m=====Jump Into Issue of Doctor: {url}=====\n\033[0m")
-            # switch_to_tab_window(self.driver, 2)  # 切换页面到issue页面
+            # issue.click()  # 点击进入当前特定医生的特定issue
+            incoming_url = response.urljoin(issue.get_attribute("href"))
+            logging.info(f"\033[32m=====Jump Into Issue of Doctor: {incoming_url}\n\033[0m")
             # 处理问诊记录（有可能没有！！！）
-            yield from self.parse_issue_archive(response, url)
+            yield scrapy.Request(url=incoming_url, callback=self.parse_issue_archive,
+                                 meta={'incoming_url': incoming_url}, dont_filter=True)
 
     # 3. 处理issue页面。当前：特定医生页面下面的issue list
 
     # 4. 处理issue的问诊记录页面。当前：issue list下面的特定issue
-    def parse_issue_archive(self, response, url, **kwargs):
+    def parse_issue_archive(self, response, **kwargs):
         logging.info("\033[32m=====Jump Into parse_doctor_page Function=====\n\033[0m")
-        doctor_issue_url = self.driver.get(url)  # 别删，监听器有问题
-        logging.info(f"\033[32m=====parse_issue_archive Current URL: {doctor_issue_url}=====\n\033[0m")
-        logging.info("\033[32m=====Jump Into parse_issue_archive Function=====\n\033[0m")
+        doctor_issue_url = response.meta.get('incoming_url')  # 别删，监听器有问题
+        self.driver.get(doctor_issue_url)
+        logging.info(f"\033[32m=====parse_issue_archive Current URL: {doctor_issue_url}\n\033[0m")
+        logging.info("\033[32m=====Jump Into parse_issue_archive Function\n\033[0m")
         current_issue_url = self.driver.current_url
-        logging.info(f"\033[32m=====parse_issue_archive Current Issue URL: {current_issue_url}=====\n\033[0m")
+        logging.info(f"\033[32m=====parse_issue_archive Current Issue URL: {current_issue_url}\n\033[0m")
         issue_unit = SpringRainDoctorItem()
         # 捕捉到issue归纳的按钮
         # issue_archive_button = self.driver.find_element_by_xpath(
@@ -214,7 +208,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
             issue_unit['answer'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][2]/text()")
             issue_unit['case_url'] = self.driver.current_url
 
-            logging.info(f"\033[32m=====issue_unit: {issue_unit}=====\n\033[0m")
+            logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")
 
         except Exception as e:
             print(f"ERROR: {e}")
@@ -223,7 +217,4 @@ class SpringRainDoctorSpider(scrapy.Spider):
             issue_unit['answer'] = ""
             issue_unit['case_url'] = self.driver.current_url
 
-            logging.info(f"\033[32m=====issue_unit: {issue_unit}=====\n\033[0m")
-
-        close_some_tab_window(self.driver, 3)
-        # self.driver.close()  # TODO 关闭issue页面，现在关闭的是主页，应该关闭第三页
+            logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")
