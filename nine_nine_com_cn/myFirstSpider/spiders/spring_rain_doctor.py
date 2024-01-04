@@ -163,7 +163,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
     # 2. 处理doctor页面。当前：特定医生页面
     def parse_doctor_page(self, response, doctor_url, **kwargs):
         logging.info(f"\033[32m=====Jump Into parse_doctor_page Function: {doctor_url}=====\n\033[0m")
-        self.driver.get(doctor_url)  # TODO 别删，监听器有问题 这里导致主页变成医生名字
+        self.driver.get(doctor_url)  # TODO 这里导致主页变成医生名字
         # TODO selenium和scrapy的API要制定使用+规范，否则会出现奇奇怪怪的bug
         # switch_to_tab_window(self.driver, 0)  # 切换页面到主页面
         logging.info("\033[32m=====Do Parsing parse_issue_page Function=====\n\033[0m")
