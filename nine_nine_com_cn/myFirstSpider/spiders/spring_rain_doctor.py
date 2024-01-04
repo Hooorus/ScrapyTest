@@ -45,7 +45,7 @@ def switch_to_tab_window(driver, open_tab):
 def close_some_tab_window(driver, close_tab):
     all_handles = driver.window_handles  # 获取所有窗口句柄
     driver.switch_to.window(all_handles[close_tab])
-    driver.close()
+    driver.close()  # TODO SOME PROBLEM
     logging.info(f"\033[32m=====Current Url: {driver.current_url}=====\n\033[0m")
 
 
@@ -225,4 +225,5 @@ class SpringRainDoctorSpider(scrapy.Spider):
 
             logging.info(f"\033[32m=====issue_unit: {issue_unit}=====\n\033[0m")
 
-        self.driver.close()  # TODO 关闭issue页面，现在关闭的是主页，应该关闭第三页
+        close_some_tab_window(self.driver, 3)
+        # self.driver.close()  # TODO 关闭issue页面，现在关闭的是主页，应该关闭第三页
