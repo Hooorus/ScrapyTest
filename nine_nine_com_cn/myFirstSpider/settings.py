@@ -63,13 +63,15 @@ PROXY_POOL_URL = 'http://leoatchina.duia.us:3128'
 
 # 设置最大爬取数量
 MAX_CRAWL_DATA = 10
+# 春雨医生的最大爬取医生量（每个医生大概有6个issue）
+MAX_CRAWL_DOCTOR = 10
 
 # 设置每次休息时间区间
-SLEEP_TIME = (1, 5)
-CLICK_TIME = (3, 8)
+SLEEP_TIME = (3, 8)
+CLICK_TIME = (2, 4)
 
 # 随机下载延迟在1到3秒之间
-DOWNLOAD_DELAY = 1.5
+DOWNLOAD_DELAY = 5
 
 # 输出结果格式
 FEEDS = {
