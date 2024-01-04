@@ -1,3 +1,4 @@
+import csv
 import logging
 import random
 import time
@@ -16,6 +17,9 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
 from nine_nine_com_cn.myFirstSpider.items import SpringRainDoctorItem
+
+# 全局变量，记录爬取到的url数量
+GLOBAL_COUNT_CRAWLED_URL = 0
 
 
 def is_next_button_available(driver):
@@ -49,6 +53,22 @@ def close_some_tab_window(driver, close_tab):
     logging.info(f"\033[32m=====Current Url: {driver.current_url}=====\n\033[0m")
 
 
+def write_to_file(raw_data, filename, file_type, write_mode):
+    logging.info("\033[32m=====Entering write_to_file=====\n\033[0m")
+    global GLOBAL_COUNT_CRAWLED_URL
+    try:
+        with open(filename + '.' + file_type, write_mode, newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=[''])
+            writer.writeheader()
+            for url_unit in raw_data:
+                writer.writerow({"": url_unit})
+                GLOBAL_COUNT_CRAWLED_URL += 1
+            return GLOBAL_COUNT_CRAWLED_URL
+    except Exception as e:
+        print(f"Error: {e}")
+        return GLOBAL_COUNT_CRAWLED_URL
+
+
 class SpringRainDoctorSpider(scrapy.Spider):
     name = "spring_rain_doctor_crawler"
     allowed_domains = ["www.chunyuyisheng.com"]
@@ -57,7 +77,13 @@ class SpringRainDoctorSpider(scrapy.Spider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         settings = get_project_settings()
+        self.allocations = []  # 装载所有url爬取到的内容
         self.url_container = []
+        self.url_container_file_name = "url_container"
+        self.url_container_file_type = "csv"
+        self.result_file_name = "result"
+        self.result_file_type = "csv"
+        self.max_crawl_data = settings.get("MAX_CRAWL_DATA")  # 设置最大爬取数量
 
         # ------------------------------代理区------------------------------
         # self.driver = webdriver.Chrome()
@@ -70,8 +96,10 @@ class SpringRainDoctorSpider(scrapy.Spider):
         # self.cookies = self.driver.get_cookies()
 
         self.click_time = random.uniform(settings.get("CLICK_TIME")[0], settings.get("CLICK_TIME")[1])  # 设置每次点击按钮的休息时间
+        logging.debug(f"\033[34m=====Start Url Count: {GLOBAL_COUNT_CRAWLED_URL}\033[0m")
 
     def parse(self, response, **kwargs):
+        global GLOBAL_COUNT_CRAWLED_URL
         self.driver.get(response.url)
         logging.debug(f"\033[34m=====response.url=====\n{response.url}\033[0m")
 
@@ -118,9 +146,8 @@ class SpringRainDoctorSpider(scrapy.Spider):
         logging.info("\033[32m=====仅显示可咨询医生 Button Clicked=====\n\033[0m")
 
         # -------------------至此，按年进入需要爬取的页面完成，接下来是对医生名片的操作（第二级）-------------------
-        loop = 1
-        while is_next_button_available(self.driver) and loop < 3:  # 判断是否还有下一页
-            loop += 1
+
+        while is_next_button_available(self.driver) and GLOBAL_COUNT_CRAWLED_URL < self.max_crawl_data:  # 判断是否还有下一页
             next_page_btn = WebDriverWait(self.driver, 5).until(
                 expected_conditions.presence_of_element_located(
                     (By.XPATH, "//div[@class='pagebar']/a[@class='next']"))
@@ -131,9 +158,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 expected_conditions.presence_of_all_elements_located(
                     (By.XPATH, "//div[@class='doctor-list']/div[contains(@class, 'doctor-info-item')]"))
             )
-            # test
-            doctor_cards_list = doctor_cards_list[:3]
-            # TODO 点击进入详情，找到疾病list
+            # 点击进入详情，找到疾病list
             for doctor_card in doctor_cards_list:
                 time.sleep(self.click_time)  # 这个地方click的太快了，导致服务器429，需要加个睡眠时间！
                 logging.debug(f"\033[34m=====Doctor Cards List: {doctor_cards_list}\n\033[0m")
@@ -148,9 +173,11 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 logging.info("\033[32m=====Do Parsing parse_doctor_page Function=====\n\033[0m")
 
                 self.url_container.append(incoming_url)
+                GLOBAL_COUNT_CRAWLED_URL += 1
                 # yield scrapy.Request(incoming_url, callback=self.parse_doctor_page,
                 #                      meta={'incoming_url': incoming_url}, dont_filter=True)
                 # FIXME 先截断吧，收集各个医生的url，放入文件中，给下面的函数独立处理
+        write_to_file(self.url_container, self.url_container_file_name, self.url_container_file_type, "a")
         logging.info(f"\033[32m=====URL CONTAINER: {self.url_container}\n\033[0m")
 
     # 2. 独立处理doctor页面。当前：特定医生页面
