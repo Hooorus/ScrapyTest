@@ -134,7 +134,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
                     (By.XPATH, "//div[@class='doctor-list']/div[contains(@class, 'doctor-info-item')]"))
             )
             count = 0
-            # 进入详情，找到疾病list
+            # TODO 点击进入详情，找到疾病list
             for doctor_card in doctor_cards_list:
                 # count += 1
                 # if count > 4:
@@ -144,12 +144,11 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 doctor_detail_link = doctor_card.find_element_by_xpath(
                     "./div[@class='detail']/div[@class='des-item']/a[@class='name-wrap']")
                 logging.debug(f"\033[34m=====Current Doctor Card: {doctor_detail_link}=====\n\033[0m")
-                doctor_detail_link.click()  # 点击进入当前循环的医生卡片 TODO 然后点击链接开启新tab后，原始页面也会变成当前页面（重复）
+                doctor_detail_link.click()  # 点击进入当前循环的医生卡片 TODO tab重复
                 self.driver.implicitly_wait(2)
-                original_window = self.driver.current_window_handle
                 # url = self.driver.current_url
-                # url = response.urljoin(doctor_detail_link.get_attribute("href"))
-                # logging.info(f"\033[32m=====Jump Into Doctor:{url}=====\n\033[0m")
+                url = response.urljoin(doctor_detail_link.get_attribute("href"))
+                logging.info(f"\033[32m=====Jump Into Doctor:{url}=====\n\033[0m")
                 # url = response.urljoin(doctor_detail_link.get_attribute("href"))
                 # 目前已打开了特定医生的页面，现在我们需要切换到这个医生的页面进行爬取，yield到parse_doctor_page函数
                 # yield scrapy.Request(url, callback=self.parse_doctor_page, meta={'driver': self.driver}, dont_filter=True)
@@ -157,31 +156,21 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 # switch_to_tab_window(self.driver, 1)  # 切换页面到医生页面
                 logging.info("\033[32m=====Do Parsing parse_doctor_page Function=====\n\033[0m")
                 # self.cookies = self.driver.get_cookies()
-                yield from self.parse_doctor_page(response)  # ↓↓↓↓↓↓↓开始迭代↓↓↓↓↓↓↓
+                yield from self.parse_doctor_page(response, url)  # ↓↓↓↓↓↓↓开始迭代↓↓↓↓↓↓↓
                 # scrapy_response = HtmlResponse(url=url, body=self.driver.page_source, encoding='utf-8')
                 # yield scrapy.Request(url=url, callback=self.parse_doctor_page, dont_filter=True)
 
     # 2. 处理doctor页面。当前：特定医生页面
-    def parse_doctor_page(self, response, **kwargs):
-        logging.info("\033[32m=====Jump Into parse_doctor_page Function=====\n\033[0m")
-        # doctor_url = self.driver.get(doctor_url)  # 别删，监听器有问题
-        # logging.info(f"\033[32m=====parse_doctor_page doctor_url: {doctor_url}=====\n\033[0m")
+    def parse_doctor_page(self, response, doctor_url, **kwargs):
+        logging.info(f"\033[32m=====Jump Into parse_doctor_page Function: {doctor_url}=====\n\033[0m")
+        self.driver.get(doctor_url)  # TODO 别删，监听器有问题 这里导致主页变成医生名字
+        # TODO selenium和scrapy的API要制定使用+规范，否则会出现奇奇怪怪的bug
         # switch_to_tab_window(self.driver, 0)  # 切换页面到主页面
         logging.info("\033[32m=====Do Parsing parse_issue_page Function=====\n\033[0m")
 
         current_url = self.driver.current_url
         logging.info(f"\033[32m=====parse_doctor_page Current URL: {current_url}=====\n\033[0m")
-        # issue_list = WebDriverWait(self.driver, 5).until(  # TODO 这里找不到元素 判定当前页面是否存在医生卡片
-        #     expected_conditions.presence_of_all_elements_located(
-        #         (By.XPATH, "//div[@class='hot-qa main-block']/div[@class='hot-qa-item']//a"))
-        # )
-        issue_list = self.driver.find_elements_by_xpath("//div[@class='hot-qa-item']//a")
-
-        # issue_list = WebDriverWait(self.driver, 10).until(  # TODO 这里找不到元素 判定当前页面是否存在医生卡片
-        #     expected_conditions.presence_of_all_elements_located(
-        #         (By.XPATH, "//div[@class='hot-qa-item']/div[@class='qa-item qa-item-ask']/a"))
-        # )
-        # //div[@class='hot-qa-item']/div[@class='qa-item qa-item-ask']/a
+        issue_list = self.driver.find_elements_by_xpath("//div[@class='hot-qa-item']//a")  # TODO 问题部分：找不到元素
 
         for issue in issue_list:
             time.sleep(self.click_time)  # 睡一觉
