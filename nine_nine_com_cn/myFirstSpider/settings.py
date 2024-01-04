@@ -58,7 +58,7 @@ PROXY_POOL_URLS = [
     # 'http://proxy5.example.com',
 ]
 
-PROXY_POOL_URL = 'http://192.168.2.14:3128'
+PROXY_POOL_URL = 'http://leoatchina.duia.us:3128'
 # PROXY_POOL_URL = 'http://127.0.0.1:80'
 
 # 设置最大爬取数量
