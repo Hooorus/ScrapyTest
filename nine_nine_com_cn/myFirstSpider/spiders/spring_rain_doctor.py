@@ -1,6 +1,5 @@
 import csv
 import logging
-import os
 import random
 import re
 import shutil
@@ -13,6 +12,7 @@ from selenium import webdriver
 from scrapy.utils.project import get_project_settings
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, JavascriptException
 from selenium.webdriver import ActionChains
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
@@ -46,10 +46,11 @@ def write_to_file(raw_data, filename, file_type, write_mode):
     global GLOBAL_DOCTOR_CRAWLED_URL
     try:
         with open(filename + '.' + file_type, write_mode, newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=[''])
+            fieldnames = ['URL', 'AlREADY_PARSED']
+            writer = csv.DictWriter(csvfile, fieldnames)
             writer.writeheader()
             for url_unit in raw_data:
-                writer.writerow({"": url_unit})
+                writer.writerow({"URL": url_unit, "AlREADY_PARSED": "0"})
                 GLOBAL_DOCTOR_CRAWLED_URL += 1
             return GLOBAL_DOCTOR_CRAWLED_URL
     except Exception as e:
@@ -61,14 +62,26 @@ def write_to_file(raw_data, filename, file_type, write_mode):
 def read_from_file(target_list_container: list, filename: str, file_type: str, read_mode: str):
     logging.info("\033[32m=====Entering read_from_file=====\n\033[0m")
     try:
-        with open(f"{filename}.{file_type}", read_mode, newline='', encoding='utf-8') as csvfile:
+        with open(f"{filename}.{file_type}", "r+", newline='', encoding='utf-8') as csvfile:
             logging.info(f"\033[34m=====Opened {filename}.{file_type} by {read_mode}=====\n\033[0m")
-            reader = csv.reader(csvfile)
+            reader = csv.DictReader(csvfile)
+            rows_to_write = []  # 用于存储将要写回文件的行
+
             url_pattern = re.compile(r'https?://\S+')  # url正则匹配
             for row in reader:  # 读取每行
-                if url_pattern.match(row[0]):  # 如果匹配的话
-                    target_list_container.append(row[0])  # 装到一个list中
+                logging.debug(f"\033[34m====={row}=====\n\033[0m")
+                if url_pattern.match(row['URL']) and row['AlREADY_PARSED'] == "0":  # 如果匹配的话
+                    row['AlREADY_PARSED'] = "1"
+                    target_list_container.append(row['URL'])  # 装到一个list中
                     logging.debug(f"\033[34m=====Regex one row & appended to {target_list_container}=====\n\033[0m")
+                # 将修改后的行添加到列表中
+                rows_to_write.append(row)
+            # 将修改后的行写回文件
+            with open(f"{filename}.{file_type}", 'w', newline='', encoding='utf-8') as csvfile_write:
+                writer = csv.DictWriter(csvfile_write, fieldnames=reader.fieldnames)
+                writer.writeheader()
+                writer.writerows(rows_to_write)
+
             logging.info(
                 f"\033[32m=====Finished loading {filename}.{file_type} to {target_list_container}=====\n\033[0m")
             return target_list_container
@@ -92,8 +105,6 @@ def data_clean_from_file(filename: str, file_type: str):
             for row in reader:
                 if not trash_pattern.match(row[0]):
                     writer.writerow(row)
-        # Replace the original file with the temporary file
-        # os.replace(temp_filename, f"{filename}.{file_type}")
         shutil.move(temp_filename, f"{filename}.{file_type}")
         logging.info(f"\033[32m=====Data cleaned in {filename}.{file_type}=====\n\033[0m")
 
@@ -131,7 +142,6 @@ class SpringRainDoctorSpider(scrapy.Spider):
         # self.driver = webdriver.Chrome(options=chrome_options)
 
         # -----------------------------------------------------------------
-        # self.cookies = self.driver.get_cookies()
 
         self.click_time = random.uniform(settings.get("CLICK_TIME")[0], settings.get("CLICK_TIME")[1])  # 设置每次点击按钮的休息时间
         self.sleep_time = random.uniform(settings.get("SLEEP_TIME")[0], settings.get("SLEEP_TIME")[1])  # 设置每次睡觉休息时间
@@ -140,7 +150,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
     def parse(self, response, **kwargs):
         global GLOBAL_DOCTOR_CRAWLED_URL
         global GLOBAL_PAGINATION_BTN_COUNT
-        # FIXME 小概率出现找不到元素
+
         self.driver.get(response.url)
         logging.debug(f"\033[34m=====response.url=====\n{response.url}\033[0m")
 
@@ -227,7 +237,6 @@ class SpringRainDoctorSpider(scrapy.Spider):
     def parse_doctor_page(self, response, **kwargs):
         global GLOBAL_ISSUE_CRAWLED_URL
         # 读取文件，然后把所有urls装入handled_result_container
-        # TODO 这里最好做一个文件读取时去重工作
         handled_result_container = read_from_file(self.doctor_url_container, self.doctor_url_container_file_name,
                                                   self.doctor_url_container_file_type, "r")
         for url_unit in handled_result_container:  # 循环处理url_container里的每一个url
