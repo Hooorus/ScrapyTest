@@ -9,7 +9,7 @@ from scrapy.http import HtmlResponse
 
 from selenium import webdriver
 from scrapy.utils.project import get_project_settings
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -189,7 +189,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
         # 着手处理url_container.csv
         try:
             yield from self.parse_doctor_page(response)
-            logging.info(f"\033[32m=====System Finished=====\n{GLOBAL_DOCTOR_CRAWLED_URL}\033[0m")
+            logging.info(f"\033[32m=====parse_doctor_page Finished=====\n{GLOBAL_DOCTOR_CRAWLED_URL}\033[0m")
         except Exception as e:
             logging.error(f"\033[31mParse_doctor_page Error Occurred: {e}\033[0m")
 
@@ -203,8 +203,9 @@ class SpringRainDoctorSpider(scrapy.Spider):
         for url_unit in handled_result_container:  # 循环处理url_container里的每一个url
             self.driver.get(url_unit)  # 得到每个好评问题的url进行访问
             time.sleep(self.sleep_time)  # 注意休息
+            # FIXME 这个地方会出现医生页面没有issue（异常：空），或者春雨医生拒绝访问（异常：404），
             try:
-                qa_links = WebDriverWait(self.driver, 8).until(
+                qa_links = WebDriverWait(self.driver, 10).until(
                     expected_conditions.presence_of_all_elements_located((By.XPATH, "//div[@class='hot-qa-item']//a"))
                 )
                 for qa_link in qa_links:
@@ -212,46 +213,70 @@ class SpringRainDoctorSpider(scrapy.Spider):
                     self.issue_url_container.append(qa_link_url)
                     GLOBAL_ISSUE_CRAWLED_URL += 1
                     logging.info(f"\033[32m=====GLOBAL_ISSUE_CRAWLED_URL : {GLOBAL_ISSUE_CRAWLED_URL}\n\033[0m")
-            except Exception as e:
-                logging.warning(f"\033[33m=====NO ISSUE: {e}\n\033[0m")
+            except TimeoutException as te:  # 春雨医生拒绝访问404
+                write_to_file(self.issue_url_container, self.issue_url_container_file_name,
+                              self.issue_url_container_file_type, "a")
+                logging.warning(f"\033[33m=====TimeoutException: 页面加载超时: {te}\n\033[0m")
+                break
+            except NoSuchElementException as ne:  # 医生页面没有issue
+                logging.warning(f"\033[33m=====NoSuchElementException: 找不到issue元素: {ne}\n\033[0m")
+            except KeyboardInterrupt as ki:  # 用户中断操作
+                write_to_file(self.issue_url_container, self.issue_url_container_file_name,
+                              self.issue_url_container_file_type, "a")
+                logging.warning(f"\033[33m=====KeyboardInterrupt: 用户中断操作: {ki}\n\033[0m")
+                break
+            except SystemExit as se:  # 程序自动退出，需要将当前容器内容导入文件
+                write_to_file(self.issue_url_container, self.issue_url_container_file_name,
+                              self.issue_url_container_file_type, "a")
+                logging.warning(f"\033[33m=====SystemExit: 程序自动退出: {se}\n\033[0m")
+                break
+            except Exception as e:  # 其他异常
+                write_to_file(self.issue_url_container, self.issue_url_container_file_name,
+                              self.issue_url_container_file_type, "a")
+                logging.warning(f"\033[33m=====Other Exception: 其他异常: {e}\n\033[0m")
         # TODO 异常退出-1，0/长期404时也需要将最后的容器内容导入到文件
-        write_to_file(self.issue_url_container, self.issue_url_container_file_name,
-                      self.issue_url_container_file_type, "a")
         logging.info(f"\033[32m=====ISSUE URL CONTAINER: {self.issue_url_container}\n\033[0m")
+        # 下一步，处理第三级issue
+        try:
+            yield from self.parse_issue_archive(response)
+            logging.info(f"\033[32m=====parse_issue_archive Finished=====\n{GLOBAL_DOCTOR_CRAWLED_URL}\033[0m")
+        except Exception as e:
+            logging.error(f"\033[31mParse_issue_archive Error Occurred: {e}\033[0m")
 
     # 4. 处理issue的问诊记录页面。当前：issue list下面的特定issue
     def parse_issue_archive(self, response, **kwargs):
         logging.info("\033[32m=====Jump Into parse_doctor_page Function=====\n\033[0m")
-        doctor_issue_url = response.meta.get('incoming_url')  # 别删，监听器有问题
-        self.driver.get(doctor_issue_url)
-        logging.info(f"\033[32m=====parse_issue_archive Current URL: {doctor_issue_url}\n\033[0m")
-        current_issue_url = self.driver.current_url
-        logging.info(f"\033[32m=====parse_issue_archive Current Issue URL: {current_issue_url}\n\033[0m")
-        issue_unit = SpringRainDoctorItem()
-        # 处理春雨医生整理的文字
-        logging.info("\033[32m=====Parsing archive text=====\n\033[0m")
-        try:
-            issue_archive_button = self.driver.find_element_by_xpath(
-                "//div[@class='qa-arrangement-header']/span[@class='qa-arrangement-btn']")
-            issue_archive_button.click()  # 点击issue归纳的按钮
+        handled_issue_container = read_from_file(self.issue_url_container, self.issue_url_container_file_name,
+                                                 self.issue_url_container_file_type, "r")
+        for issue_unit in handled_issue_container:
+            self.driver.get(issue_unit)  # 得到每个好评问题的url进行访问
+            time.sleep(self.sleep_time)  # 注意休息
+            logging.info(f"\033[32m=====parse_issue_archive Current URL: {issue_unit}\n\033[0m")
+            issue_unit = SpringRainDoctorItem()
+            # 处理春雨医生整理的文字
+            logging.info("\033[32m=====Parsing archive text=====\n\033[0m")
+            try:
+                issue_archive_button = self.driver.find_element_by_xpath(
+                    "//div[@class='qa-arrangement-header']/span[@class='qa-arrangement-btn']")
+                issue_archive_button.click()  # 点击issue归纳的按钮
 
-            issue_archive = WebDriverWait(self.driver, 5).until(  # 捕捉到春雨医生整理的文字
-                expected_conditions.presence_of_element_located(
-                    (By.XPATH, "//div[@class='qa-arrangement-body']"))
-            )
+                issue_archive = WebDriverWait(self.driver, 5).until(  # 捕捉到春雨医生整理的文字
+                    expected_conditions.presence_of_element_located(
+                        (By.XPATH, "//div[@class='qa-arrangement-body']"))
+                )
 
-            issue_unit['issue_title'] = self.driver.title
-            issue_unit['issue_desc'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][1]/text()")
-            issue_unit['answer'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][2]/text()")
-            issue_unit['case_url'] = self.driver.current_url
+                issue_unit['issue_title'] = self.driver.title
+                issue_unit['issue_desc'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][1]/text()")
+                issue_unit['answer'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][2]/text()")
+                issue_unit['case_url'] = self.driver.current_url
 
-            logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")
+                logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")
 
-        except Exception as e:
-            print(f"ERROR: {e}")
-            issue_unit['issue_title'] = self.driver.title
-            issue_unit['issue_desc'] = ""
-            issue_unit['answer'] = ""
-            issue_unit['case_url'] = self.driver.current_url
+            except Exception as e:
+                print(f"ERROR: {e}")
+                issue_unit['issue_title'] = self.driver.title
+                issue_unit['issue_desc'] = ""
+                issue_unit['answer'] = ""
+                issue_unit['case_url'] = self.driver.current_url
 
-            logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")
+                logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")

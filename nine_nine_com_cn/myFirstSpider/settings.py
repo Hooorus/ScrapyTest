@@ -61,9 +61,9 @@ PROXY_POOL_URLS = [
 PROXY_POOL_URL = 'http://leoatchina.duia.us:3128'
 # PROXY_POOL_URL = 'http://127.0.0.1:80'
 
-# 设置最大爬取数量
+# 99健康网 设置最大爬取数量
 MAX_CRAWL_DATA = 10
-# 春雨医生的最大爬取医生量（每个医生大概有6个issue）
+# 春雨医生 最大爬取医生量(并不精准，至少超过设置值，每页医生的数量20，建议至少20且为20的倍数)（每个医生大概有7个issue）∴数据量=20*7
 MAX_CRAWL_DOCTOR = 10
 
 # 设置每次休息时间区间
