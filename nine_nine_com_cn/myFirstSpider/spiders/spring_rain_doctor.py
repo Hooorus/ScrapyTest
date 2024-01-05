@@ -1,28 +1,32 @@
 import csv
 import logging
+import os
 import random
 import re
+import shutil
 import time
 
 import scrapy
-from scrapy.http import HtmlResponse
+from scrapy.exceptions import IgnoreRequest
 
 from selenium import webdriver
 from scrapy.utils.project import get_project_settings
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, JavascriptException
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
 from nine_nine_com_cn.myFirstSpider.items import SpringRainDoctorItem
 
-# 全局变量，记录爬取到的url数量
+# 全局变量，记录爬取到的url数量(step. 1)
 GLOBAL_DOCTOR_CRAWLED_URL = 0
-
+# 全局变量，记录issue url的爬取数量(step. 2)
 GLOBAL_ISSUE_CRAWLED_URL = 0
+# 全局变量，记录issue url的处理数量(step. 3)
+GLOBAL_ISSUE_PARSED_URL = 0
+# 全局变量，记录分页点击数量
+GLOBAL_PAGINATION_BTN_COUNT = 0
 
 
 def is_next_button_available(driver):
@@ -41,7 +45,7 @@ def write_to_file(raw_data, filename, file_type, write_mode):
     logging.info("\033[32m=====Entering write_to_file=====\n\033[0m")
     global GLOBAL_DOCTOR_CRAWLED_URL
     try:
-        with open(filename + '.' + file_type, write_mode, newline='') as csvfile:
+        with open(filename + '.' + file_type, write_mode, newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=[''])
             writer.writeheader()
             for url_unit in raw_data:
@@ -57,7 +61,7 @@ def write_to_file(raw_data, filename, file_type, write_mode):
 def read_from_file(target_list_container: list, filename: str, file_type: str, read_mode: str):
     logging.info("\033[32m=====Entering read_from_file=====\n\033[0m")
     try:
-        with open(f"{filename}.{file_type}", read_mode, newline='') as csvfile:
+        with open(f"{filename}.{file_type}", read_mode, newline='', encoding='utf-8') as csvfile:
             logging.info(f"\033[34m=====Opened {filename}.{file_type} by {read_mode}=====\n\033[0m")
             reader = csv.reader(csvfile)
             url_pattern = re.compile(r'https?://\S+')  # url正则匹配
@@ -72,6 +76,29 @@ def read_from_file(target_list_container: list, filename: str, file_type: str, r
         logging.error(
             f"\033[91m=====Error in read_from_file occurred when reading {filename}.{file_type} by {read_mode}: {e}=====\n\033[0m")
         return target_list_container
+
+
+# ------------------------------csv数据清洗模块------------------------------
+def data_clean_from_file(filename: str, file_type: str):
+    logging.info("\033[32m=====Entering data_clean_from_file=====\n\033[0m")
+    try:
+        # Create a temporary file
+        temp_filename = f"_{filename}.{file_type}"
+        with open(f"{filename}.{file_type}", "r", newline='', encoding='utf-8') as csvfile, \
+                open(temp_filename, "w", newline='', encoding='utf-8') as temp_csvfile:
+            reader = csv.reader(csvfile)
+            writer = csv.writer(temp_csvfile)
+            trash_pattern = re.compile(r'^\s*{}?\s*$')
+            for row in reader:
+                if not trash_pattern.match(row[0]):
+                    writer.writerow(row)
+        # Replace the original file with the temporary file
+        # os.replace(temp_filename, f"{filename}.{file_type}")
+        shutil.move(temp_filename, f"{filename}.{file_type}")
+        logging.info(f"\033[32m=====Data cleaned in {filename}.{file_type}=====\n\033[0m")
+
+    except Exception as e:
+        logging.warning(f"\033[33m=====Error during data cleaning: {e}\n\033[0m")
 
 
 class SpringRainDoctorSpider(scrapy.Spider):
@@ -97,11 +124,11 @@ class SpringRainDoctorSpider(scrapy.Spider):
         self.max_crawl_doctors = settings.get("MAX_CRAWL_DOCTOR")  # 设置最大爬取数量
 
         # ------------------------------代理区------------------------------
-        # self.driver = webdriver.Chrome()
-        self.proxy_url = settings.get("PROXY_POOL_URL")
-        chrome_options = Options()
-        chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
-        self.driver = webdriver.Chrome(options=chrome_options)
+        self.driver = webdriver.Chrome()
+        # self.proxy_url = settings.get("PROXY_POOL_URL")
+        # chrome_options = Options()
+        # chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
+        # self.driver = webdriver.Chrome(options=chrome_options)
 
         # -----------------------------------------------------------------
         # self.cookies = self.driver.get_cookies()
@@ -112,6 +139,8 @@ class SpringRainDoctorSpider(scrapy.Spider):
 
     def parse(self, response, **kwargs):
         global GLOBAL_DOCTOR_CRAWLED_URL
+        global GLOBAL_PAGINATION_BTN_COUNT
+        # FIXME 小概率出现找不到元素
         self.driver.get(response.url)
         logging.debug(f"\033[34m=====response.url=====\n{response.url}\033[0m")
 
@@ -148,29 +177,29 @@ class SpringRainDoctorSpider(scrapy.Spider):
         logging.debug("\033[34m=====Click 心血管内科 Button=====\n\033[0m")
         find_heart_in_med_button.click()  # 点击按钮
         logging.info("\033[32m=====心血管内科 Button Clicked=====\n\033[0m")
-        # 操作“仅显示可咨询医生”按钮
-        doctor_available_button = WebDriverWait(self.driver, 5).until(  # 找到“仅显示可咨询医生”按钮
-            expected_conditions.presence_of_element_located(
-                (By.XPATH, "//div[@id='clinicTitle']/a/label[@class='available-switch']"))
-        )
-        logging.debug("\033[34m=====Click 仅显示可咨询医生 Button=====\n\033[0m")
-        doctor_available_button.click()  # 点击按钮
-        logging.info("\033[32m=====仅显示可咨询医生 Button Clicked=====\n\033[0m")
 
         # -------------------至此，按年进入需要爬取的页面完成，接下来是对医生名片的操作（第二级）-------------------
 
-        while is_next_button_available(self.driver) and GLOBAL_DOCTOR_CRAWLED_URL < self.max_crawl_doctors:  # 判断是否还有下一页
+        while (is_next_button_available(self.driver)
+               and GLOBAL_DOCTOR_CRAWLED_URL < self.max_crawl_doctors
+               and GLOBAL_PAGINATION_BTN_COUNT < 9):  # 判断是否还有下一页
             next_page_btn = WebDriverWait(self.driver, 5).until(
                 expected_conditions.presence_of_element_located(
                     (By.XPATH, "//div[@class='pagebar']/a[@class='next']"))
             )
             next_page_btn.click()
+            GLOBAL_PAGINATION_BTN_COUNT += 1  # 分页点击次数+1
             doctor_cards_list = WebDriverWait(self.driver, 5).until(  # 判定当前页面是否存在医生卡片
                 expected_conditions.presence_of_all_elements_located(
                     (By.XPATH, "//div[@class='doctor-list']/div[contains(@class, 'doctor-info-item')]"))
             )
             # 点击进入详情，找到疾病list
             for doctor_card in doctor_cards_list:
+                # ----------------------------------
+                if GLOBAL_DOCTOR_CRAWLED_URL >= self.max_crawl_doctors:
+                    logging.info(f"\033[32m=====doctor number:{GLOBAL_DOCTOR_CRAWLED_URL}, exit loop\n\033[0m")
+                    break
+                # ----------------------------------
                 time.sleep(self.sleep_time)  # 这个地方click的太快了，导致服务器429，需要加个睡眠时间！
                 logging.debug(f"\033[34m=====Doctor Cards List: {doctor_cards_list}\n\033[0m")
                 doctor_detail_link = doctor_card.find_element_by_xpath(
@@ -185,6 +214,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 # 先截断吧，收集各个医生的url，放入文件中，给下面的函数独立处理
         write_to_file(self.doctor_url_container, self.doctor_url_container_file_name,
                       self.doctor_url_container_file_type, "a")
+        self.doctor_url_container.clear()  # 写完清空
         logging.info(f"\033[32m=====DOCTOR URL CONTAINER: {self.doctor_url_container}\n\033[0m")
         # 着手处理url_container.csv
         try:
@@ -203,7 +233,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
         for url_unit in handled_result_container:  # 循环处理url_container里的每一个url
             self.driver.get(url_unit)  # 得到每个好评问题的url进行访问
             time.sleep(self.sleep_time)  # 注意休息
-            # FIXME 这个地方会出现医生页面没有issue（异常：空），或者春雨医生拒绝访问（异常：404），
+            # 这个地方会出现医生页面没有issue（异常：空），或者春雨医生拒绝访问（异常：404），
             try:
                 qa_links = WebDriverWait(self.driver, 10).until(
                     expected_conditions.presence_of_all_elements_located((By.XPATH, "//div[@class='hot-qa-item']//a"))
@@ -213,28 +243,34 @@ class SpringRainDoctorSpider(scrapy.Spider):
                     self.issue_url_container.append(qa_link_url)
                     GLOBAL_ISSUE_CRAWLED_URL += 1
                     logging.info(f"\033[32m=====GLOBAL_ISSUE_CRAWLED_URL : {GLOBAL_ISSUE_CRAWLED_URL}\n\033[0m")
+                write_to_file(self.issue_url_container, self.issue_url_container_file_name,
+                              self.issue_url_container_file_type, "a")
+                self.issue_url_container.clear()  # 写完清空
             except TimeoutException as te:  # 春雨医生拒绝访问404
                 write_to_file(self.issue_url_container, self.issue_url_container_file_name,
                               self.issue_url_container_file_type, "a")
-                logging.warning(f"\033[33m=====TimeoutException: 页面加载超时: {te}\n\033[0m")
+                self.issue_url_container.clear()  # 写完清空
+                logging.warning(f"\033[33m=====TimeoutException: 页面加载超时: \n{te}\n\033[0m")
                 break
             except NoSuchElementException as ne:  # 医生页面没有issue
-                logging.warning(f"\033[33m=====NoSuchElementException: 找不到issue元素: {ne}\n\033[0m")
+                logging.warning(f"\033[33m=====NoSuchElementException: 找不到issue元素: \n{ne}\n\033[0m")
             except KeyboardInterrupt as ki:  # 用户中断操作
                 write_to_file(self.issue_url_container, self.issue_url_container_file_name,
                               self.issue_url_container_file_type, "a")
-                logging.warning(f"\033[33m=====KeyboardInterrupt: 用户中断操作: {ki}\n\033[0m")
+                self.issue_url_container.clear()  # 写完清空
+                logging.warning(f"\033[33m=====KeyboardInterrupt: 用户中断操作: \n{ki}\n\033[0m")
                 break
             except SystemExit as se:  # 程序自动退出，需要将当前容器内容导入文件
                 write_to_file(self.issue_url_container, self.issue_url_container_file_name,
                               self.issue_url_container_file_type, "a")
-                logging.warning(f"\033[33m=====SystemExit: 程序自动退出: {se}\n\033[0m")
+                self.issue_url_container.clear()  # 写完清空
+                logging.warning(f"\033[33m=====SystemExit: 程序自动退出: \n{se}\n\033[0m")
                 break
             except Exception as e:  # 其他异常
                 write_to_file(self.issue_url_container, self.issue_url_container_file_name,
                               self.issue_url_container_file_type, "a")
-                logging.warning(f"\033[33m=====Other Exception: 其他异常: {e}\n\033[0m")
-        # TODO 异常退出-1，0/长期404时也需要将最后的容器内容导入到文件
+                self.issue_url_container.clear()  # 写完清空
+                logging.warning(f"\033[33m=====Other Exception: 其他异常: \n{e}\n\033[0m")
         logging.info(f"\033[32m=====ISSUE URL CONTAINER: {self.issue_url_container}\n\033[0m")
         # 下一步，处理第三级issue
         try:
@@ -243,8 +279,9 @@ class SpringRainDoctorSpider(scrapy.Spider):
         except Exception as e:
             logging.error(f"\033[31mParse_issue_archive Error Occurred: {e}\033[0m")
 
-    # 4. 处理issue的问诊记录页面。当前：issue list下面的特定issue
+    # 3. 处理issue的问诊记录页面。当前：issue list下面的特定issue
     def parse_issue_archive(self, response, **kwargs):
+        global GLOBAL_ISSUE_PARSED_URL
         logging.info("\033[32m=====Jump Into parse_doctor_page Function=====\n\033[0m")
         handled_issue_container = read_from_file(self.issue_url_container, self.issue_url_container_file_name,
                                                  self.issue_url_container_file_type, "r")
@@ -253,30 +290,68 @@ class SpringRainDoctorSpider(scrapy.Spider):
             time.sleep(self.sleep_time)  # 注意休息
             logging.info(f"\033[32m=====parse_issue_archive Current URL: {issue_unit}\n\033[0m")
             issue_unit = SpringRainDoctorItem()
+            GLOBAL_ISSUE_PARSED_URL += 1
+            logging.info(f"\033[32m=====GLOBAL_ISSUE_PARSED_URL: {GLOBAL_ISSUE_PARSED_URL}=====\n\033[0m")
             # 处理春雨医生整理的文字
-            logging.info("\033[32m=====Parsing archive text=====\n\033[0m")
             try:
-                issue_archive_button = self.driver.find_element_by_xpath(
-                    "//div[@class='qa-arrangement-header']/span[@class='qa-arrangement-btn']")
-                issue_archive_button.click()  # 点击issue归纳的按钮
+                # 执行 JavaScript 代码
+                script = """
+                        document.querySelector(".qa-arrangement-btn").click();
+                    """
+                self.driver.execute_script(script)
 
-                issue_archive = WebDriverWait(self.driver, 5).until(  # 捕捉到春雨医生整理的文字
+                issue_archive = WebDriverWait(self.driver, 10).until(  # 捕捉到春雨医生整理的文字
                     expected_conditions.presence_of_element_located(
                         (By.XPATH, "//div[@class='qa-arrangement-body']"))
                 )
+                logging.debug(f"\033[34m=====current issue_archive: \n{issue_archive}\n\033[0m")
 
                 issue_unit['issue_title'] = self.driver.title
-                issue_unit['issue_desc'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][1]/text()")
-                issue_unit['answer'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][2]/text()")
+                issue_unit['issue_desc'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][1]").text
+                issue_unit['answer'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][2]").text
                 issue_unit['case_url'] = self.driver.current_url
 
-                logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")
+                logging.info(f"\033[32m=====issue_unit: \n{issue_unit}\n\033[0m")
 
-            except Exception as e:
-                print(f"ERROR: {e}")
+            except (TimeoutException, IgnoreRequest) as te:  # 春雨医生拒绝访问404
+                write_to_file(self.allocations, self.result_file_name, self.result_file_type, "a")
+                self.allocations.clear()  # 写完清空
+                logging.warning(f"\033[33m=====TimeoutException / IgnoreRequest: 页面加载超时/404: \n{te}\n\033[0m")
+                break
+            except NoSuchElementException as ne:  # 疾病页面没有问诊记录
                 issue_unit['issue_title'] = self.driver.title
                 issue_unit['issue_desc'] = ""
                 issue_unit['answer'] = ""
                 issue_unit['case_url'] = self.driver.current_url
+                logging.info(f"\033[32m=====NoSuchElementException issue_unit: \n{issue_unit}\n\033[0m")
+                logging.warning(f"\033[33m=====NoSuchElementException: 找不到issue元素: \n{ne}\n\033[0m")
+            except KeyboardInterrupt as ki:  # 用户中断操作
+                write_to_file(self.allocations, self.result_file_name, self.result_file_type, "a")
+                self.allocations.clear()  # 写完清空
+                logging.warning(f"\033[33m=====KeyboardInterrupt: 用户中断操作: \n{ki}\n\033[0m")
+                break
+            except SystemExit as se:  # 程序自动退出，需要将当前容器内容导入文件
+                write_to_file(self.allocations, self.result_file_name, self.result_file_type, "a")
+                self.allocations.clear()  # 写完清空
+                logging.warning(f"\033[33m=====SystemExit: 程序自动退出: \n{se}\n\033[0m")
+                break
+            except JavascriptException as ae:  # js脚本找不到动态click的css，有可能是此issue没有问诊记录
+                write_to_file(self.allocations, self.result_file_name, self.result_file_type, "a")
+                self.allocations.clear()  # 写完清空
+                logging.warning(f"\033[33m=====JavascriptException: js找不到issue元素: \n{ae}\n\033[0m")
+            except Exception as e:
+                issue_unit['issue_title'] = self.driver.title
+                issue_unit['issue_desc'] = ""
+                issue_unit['answer'] = ""
+                issue_unit['case_url'] = self.driver.current_url
+                logging.info(f"\033[32m=====Other Exception issue_unit: \n{issue_unit}\n\033[0m")
+                logging.warning(f"\033[33m=====Other Exception: 其他异常: {e}\n\033[0m")
+                write_to_file(self.allocations, self.result_file_name, self.result_file_type, "a")
+                self.allocations.clear()  # 写完清空
+                break
+            self.allocations.append(issue_unit)
+        write_to_file(self.allocations, self.result_file_name, self.result_file_type, "a")
+        self.allocations.clear()  # 写完清空
 
-                logging.info(f"\033[32m=====issue_unit: {issue_unit}\n\033[0m")
+        # -------------对结果进行数据清洗----------------
+        data_clean_from_file(self.result_file_name, self.result_file_type)
