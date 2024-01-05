@@ -1,3 +1,4 @@
+import ast
 import csv
 import logging
 import random
@@ -18,6 +19,7 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
 from nine_nine_com_cn.myFirstSpider.items import SpringRainDoctorItem
+from nine_nine_com_cn.myFirstSpider.pipelines import MysqlPipeline
 
 # 全局变量，记录爬取到的url数量(step. 1)
 GLOBAL_DOCTOR_CRAWLED_URL = 0
@@ -59,15 +61,18 @@ def write_to_file(raw_data, filename, file_type, write_mode):
 
 
 # ------------------------------read_from_file：读取文件模块------------------------------
-def read_from_file(target_list_container: list, filename: str, file_type: str, read_mode: str):
+def read_from_file(target_list_container: list, filename: str, file_type: str, enable_regex: int):
     logging.info("\033[32m=====Entering read_from_file=====\n\033[0m")
     try:
         with open(f"{filename}.{file_type}", "r+", newline='', encoding='utf-8') as csvfile:
-            logging.info(f"\033[34m=====Opened {filename}.{file_type} by {read_mode}=====\n\033[0m")
+            logging.info(f"\033[34m=====Opened {filename}.{file_type}=====\n\033[0m")
             reader = csv.DictReader(csvfile)
             rows_to_write = []  # 用于存储将要写回文件的行
 
-            url_pattern = re.compile(r'https?://\S+')  # url正则匹配
+            if enable_regex == 1:
+                url_pattern = re.compile(r'https?://\S+')  # url正则匹配
+            elif enable_regex == 0:
+                url_pattern = re.compile(r'^(?!URL).*')
             for row in reader:  # 读取每行
                 logging.debug(f"\033[34m====={row}=====\n\033[0m")
                 if url_pattern.match(row['URL']) and row['AlREADY_PARSED'] == "0":  # 如果匹配的话
@@ -87,7 +92,7 @@ def read_from_file(target_list_container: list, filename: str, file_type: str, r
             return target_list_container
     except Exception as e:
         logging.error(
-            f"\033[91m=====Error in read_from_file occurred when reading {filename}.{file_type} by {read_mode}: {e}=====\n\033[0m")
+            f"\033[91m=====Error in read_from_file occurred when reading {filename}.{file_type}: {e}=====\n\033[0m")
         return target_list_container
 
 
@@ -132,15 +137,21 @@ class SpringRainDoctorSpider(scrapy.Spider):
 
         self.result_file_name = "result"
         self.result_file_type = "csv"
+
+        self.pipline_list_container = []
+
         self.max_crawl_doctors = settings.get("MAX_CRAWL_DOCTOR")  # 设置最大爬取数量
 
-        # ------------------------------代理区------------------------------
+        # ------------------------------PROXY AREA------------------------------
         self.driver = webdriver.Chrome()
         # self.proxy_url = settings.get("PROXY_POOL_URL")
         # chrome_options = Options()
         # chrome_options.add_argument(f'--proxy-server={self.proxy_url}')
         # self.driver = webdriver.Chrome(options=chrome_options)
+        # -----------------------------------------------------------------
 
+        # ------------------------------DATABASE AREA------------------------------
+        self.mysql_pipeline = MysqlPipeline
         # -----------------------------------------------------------------
 
         self.click_time = random.uniform(settings.get("CLICK_TIME")[0], settings.get("CLICK_TIME")[1])  # 设置每次点击按钮的休息时间
@@ -238,7 +249,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
         global GLOBAL_ISSUE_CRAWLED_URL
         # 读取文件，然后把所有urls装入handled_result_container
         handled_result_container = read_from_file(self.doctor_url_container, self.doctor_url_container_file_name,
-                                                  self.doctor_url_container_file_type, "r")
+                                                  self.doctor_url_container_file_type, 1)
         for url_unit in handled_result_container:  # 循环处理url_container里的每一个url
             self.driver.get(url_unit)  # 得到每个好评问题的url进行访问
             time.sleep(self.sleep_time)  # 注意休息
@@ -293,7 +304,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
         global GLOBAL_ISSUE_PARSED_URL
         logging.info("\033[32m=====Jump Into parse_doctor_page Function=====\n\033[0m")
         handled_issue_container = read_from_file(self.issue_url_container, self.issue_url_container_file_name,
-                                                 self.issue_url_container_file_type, "r")
+                                                 self.issue_url_container_file_type, 1)
         for issue_unit in handled_issue_container:
             self.driver.get(issue_unit)  # 得到每个好评问题的url进行访问
             time.sleep(self.sleep_time)  # 注意休息
@@ -315,7 +326,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 )
                 logging.debug(f"\033[34m=====current issue_archive: \n{issue_archive}\n\033[0m")
 
-                issue_unit['issue_title'] = self.driver.title
+                issue_unit['issue_title'] = re.sub(r'-真实医生回答-春雨医生', '', self.driver.title)
                 issue_unit['issue_desc'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][1]").text
                 issue_unit['answer'] = issue_archive.find_element_by_xpath("//p[@class='qa-des'][2]").text
                 issue_unit['case_url'] = self.driver.current_url
@@ -349,12 +360,12 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 self.allocations.clear()  # 写完清空
                 logging.warning(f"\033[33m=====JavascriptException: js找不到issue元素: \n{ae}\n\033[0m")
             except Exception as e:
-                issue_unit['issue_title'] = self.driver.title
+                issue_unit['issue_title'] = re.sub(r'-真实医生回答-春雨医生', '', self.driver.title)
                 issue_unit['issue_desc'] = ""
                 issue_unit['answer'] = ""
                 issue_unit['case_url'] = self.driver.current_url
                 logging.info(f"\033[32m=====Other Exception issue_unit: \n{issue_unit}\n\033[0m")
-                logging.warning(f"\033[33m=====Other Exception: 其他异常: {e}\n\033[0m")
+                logging.warning(f"\033[33m=====Other Exception: 其他异常: \n{e}\n\033[0m")
                 write_to_file(self.allocations, self.result_file_name, self.result_file_type, "a")
                 self.allocations.clear()  # 写完清空
                 break
@@ -364,3 +375,26 @@ class SpringRainDoctorSpider(scrapy.Spider):
 
         # -------------对结果进行数据清洗----------------
         data_clean_from_file(self.result_file_name, self.result_file_type)
+
+        # -------------TODO 将result.csv导入数据库----------------
+        self.write_result_to_mysql(self, self.result_file_name, self.result_file_type, self.pipline_list_container)
+
+    # ------------------------------数据写入mysql模块------------------------------
+    def write_result_to_mysql(self, filename: str, file_type: str, to_container: list):
+        logging.info("\033[32m=====Entering write_result_to_mysql=====\n\033[0m")
+        result_pipeline_container = read_from_file(to_container, filename, file_type, 0)
+        for result_pipeline_unit in result_pipeline_container:
+            logging.debug(f"\033[34m=====result_pipline_unit: {result_pipeline_unit}=====\n\033[0m")
+            # bean转换
+            dict_result = ast.literal_eval(result_pipeline_unit)
+            logging.debug(f"\033[34m=====result_pipline_unit: {dict_result}=====\n\033[0m")
+            item_instance = SpringRainDoctorItem(
+                issue_title=dict_result.get('issue_title', ''),
+                issue_desc=dict_result.get('issue_desc', ''),
+                answer=dict_result.get('answer', ''),
+                case_url=dict_result.get('case_url', '')
+            )
+            try:
+                self.mysql_pipeline.process_item(self, item_instance)
+            except Exception as e:
+                logging.warning(f"\033[33m=====Exception in write_result_to_mysql: \n{e}\n\033[0m")

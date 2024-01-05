@@ -14,7 +14,6 @@ BOT_NAME = "myFirstSpider"
 SPIDER_MODULES = ["myFirstSpider.spiders"]
 NEWSPIDER_MODULE = "myFirstSpider.spiders"
 
-
 # 添加爬取时候的用户代理，下面是单个agent和agent list，如果要使用agent list，需要去中间件注册
 # USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 USER_AGENT_LIST = [
@@ -34,7 +33,6 @@ USER_AGENT_LIST = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 OPR/76.0.4017.177',
 ]
 
-
 # Obey robots.txt rules
 # 第二处变化，将True改为False，表示访问时不按照君子协议进行数据采集
 ROBOTSTXT_OBEY = False
@@ -44,10 +42,15 @@ LOG_LEVEL = 'DEBUG'
 
 # 激活selenium中间件，需要把第一个改成这个项目名称（不是爬虫名称）
 DOWNLOADER_MIDDLEWARES = {
-   'myFirstSpider.middlewares.SeleniumMiddleware': 543,
-   'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,  # 禁用默认的Agent（启用Agent List）
-   'myFirstSpider.middlewares.RandomUserAgentMiddleware': 400,  # 处理下载中间件时的优先级, 数字越小越高 400>500（默认）
-   # 'myFirstSpider.middlewares.RandomProxyMiddleware': 543,  # 处理下载中间件时的优先级, 数字越小越高 400>500（默认）
+    'myFirstSpider.middlewares.SeleniumMiddleware': 543,
+    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,  # 禁用默认的Agent（启用Agent List）
+    'myFirstSpider.middlewares.RandomUserAgentMiddleware': 400,  # 处理下载中间件时的优先级, 数字越小越高 400>500（默认）
+    # 'myFirstSpider.middlewares.RandomProxyMiddleware': 543,  # 处理下载中间件时的优先级, 数字越小越高 400>500（默认）
+}
+
+# 启用 MySQL 存储管道
+ITEM_PIPELINES = {
+    'myFirstSpider.pipelines.MysqlPipeline': 300,  # 300 是处理的优先级，可以根据需要调整
 }
 
 PROXY_POOL_URLS = [
@@ -64,7 +67,7 @@ PROXY_POOL_URL = 'http://leoatchina.duia.us:3128'
 # 99健康网 设置最大爬取数量
 MAX_CRAWL_DATA = 10
 # 春雨医生 最大爬取医生量(并不精准，至少超过设置值，每页医生的数量20，建议至少20且为20的倍数)（每个医生大概有7个issue）∴数据量=20*7
-MAX_CRAWL_DOCTOR = 2
+MAX_CRAWL_DOCTOR = 1
 
 # 设置每次休息时间区间
 SLEEP_TIME = (3, 8)
@@ -81,6 +84,13 @@ FEEDS = {
     },
 }
 
+# ------------------------DataBase------------------------
+MYSQL_HOST = '192.168.1.204'  # IP地址
+MYSQL_PORT = 3308  # 端口号，端口号必须为一个数字
+MYSQL_USER = 'root'
+MYSQL_PASSWORD = '123456'  # 密码
+MYSQL_DB = 'spider01'  # 数据库名
+
 # 启用或禁用对 DOWNLOAD_DELAY 的随机化
 # RANDOMIZE_DOWNLOAD_DELAY = True
 # 每个域名同时只能进行一个请求
@@ -89,72 +99,72 @@ FEEDS = {
 # CONCURRENT_REQUESTS = 1
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-#CONCURRENT_REQUESTS = 32
+# CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 3
+# DOWNLOAD_DELAY = 3
 # The download delay setting will honor only one of:
-#CONCURRENT_REQUESTS_PER_DOMAIN = 16
-#CONCURRENT_REQUESTS_PER_IP = 16
+# CONCURRENT_REQUESTS_PER_DOMAIN = 16
+# CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-#COOKIES_ENABLED = False
+# COOKIES_ENABLED = False
 
 # Disable Telnet Console (enabled by default)
-#TELNETCONSOLE_ENABLED = False
+# TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
-#DEFAULT_REQUEST_HEADERS = {
+# DEFAULT_REQUEST_HEADERS = {
 #    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 #    "Accept-Language": "en",
-#}
+# }
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
+# SPIDER_MIDDLEWARES = {
 #    "myFirstSpider.middlewares.MyfirstspiderSpiderMiddleware": 543,
-#}
+# }
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
+# DOWNLOADER_MIDDLEWARES = {
 #    "myFirstSpider.middlewares.MyfirstspiderDownloaderMiddleware": 543,
-#}
+# }
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
+# EXTENSIONS = {
 #    "scrapy.extensions.telnet.TelnetConsole": None,
-#}
+# }
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
+# ITEM_PIPELINES = {
 #    "myFirstSpider.pipelines.MyfirstspiderPipeline": 300,
-#}
+# }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
-#AUTOTHROTTLE_ENABLED = True
+# AUTOTHROTTLE_ENABLED = True
 # The initial download delay
-#AUTOTHROTTLE_START_DELAY = 5
+# AUTOTHROTTLE_START_DELAY = 5
 # The maximum download delay to be set in case of high latencies
-#AUTOTHROTTLE_MAX_DELAY = 60
+# AUTOTHROTTLE_MAX_DELAY = 60
 # The average number of requests Scrapy should be sending in parallel to
 # each remote server
-#AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
+# AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
 # Enable showing throttling stats for every response received:
-#AUTOTHROTTLE_DEBUG = False
+# AUTOTHROTTLE_DEBUG = False
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
-#HTTPCACHE_ENABLED = True
-#HTTPCACHE_EXPIRATION_SECS = 0
-#HTTPCACHE_DIR = "httpcache"
-#HTTPCACHE_IGNORE_HTTP_CODES = []
-#HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
+# HTTPCACHE_ENABLED = True
+# HTTPCACHE_EXPIRATION_SECS = 0
+# HTTPCACHE_DIR = "httpcache"
+# HTTPCACHE_IGNORE_HTTP_CODES = []
+# HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 
 # Set settings whose default value is deprecated to a future-proof value
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
