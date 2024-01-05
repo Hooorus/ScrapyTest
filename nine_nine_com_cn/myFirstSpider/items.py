@@ -44,3 +44,4 @@ class SpringRainDoctorItem(scrapy.Item):
     issue_desc = scrapy.Field(serializer=str)
     answer = scrapy.Field(serializer=str)
     case_url = scrapy.Field(serializer=str)
+    already_parsed = scrapy.Field(serializer=str)

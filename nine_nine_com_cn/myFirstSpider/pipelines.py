@@ -16,14 +16,15 @@ class MyfirstspiderPipeline:
         return item
 
 
-class MysqlPipeline:
-    def open_spider(self, spider):
+class MysqlPipeline(object):
+
+    def __init__(self):
         settings = get_project_settings()
         self.host = settings['MYSQL_HOST']
         self.port = settings['MYSQL_PORT']
         self.user = settings['MYSQL_USER']
         self.password = settings['MYSQL_PASSWORD']
-        self.name = settings['MYSQL_NAME']
+        self.database = settings['MYSQL_DB']
         self.connect()
 
     def connect(self):
@@ -32,7 +33,7 @@ class MysqlPipeline:
             port=self.port,
             user=self.user,
             password=self.password,
-            db=self.name)
+            db=self.database)
         # 通过cursor才能执行sql
         self.cursor = self.conn.cursor()
 
@@ -41,11 +42,13 @@ class MysqlPipeline:
         self.conn.close()
 
     # -------------------这里写SQL和API名------------------
-    def process_item(self, item):
+    def process_item(self, item, spider):
         # 向scrapy_sprain_doc的数据表中插入变量名为title，与url的数据
-        sql = ("INSERT INTO scrapy_sprain_doc (issue_title, issue_desc, answer, case_url, already_parsed)"
-               " VALUES (%s, %s, %s, %s, %s)")
-        values = (item['issue_title'], item['issue_desc'], item['answer'], item['case_url'], item['already_parsed'])
+        sql = ('INSERT INTO scrapy_sprain_doc (issue_title, issue_desc, answer, case_url, already_parsed)'
+               ' VALUES ("{}","{}","{}","{}","{}")'
+               .format(item['issue_title'], item['issue_desc'],
+                       item['answer'], item['case_url'], item['already_parsed']))
+        # values = (item['issue_title'], item['issue_desc'], item['answer'], item['case_url'], item['already_parsed'])
         # 执行sql语句
         self.cursor.execute(sql)
         # 提交

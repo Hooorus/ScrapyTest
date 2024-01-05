@@ -8,7 +8,7 @@ from scrapy.crawler import CrawlerProcess
 if __name__ == '__main__':
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     # scrapy crawl <spider_name> <output: -o result.json>
-    execute(['scrapy', 'crawl', 'spring_rain_doctor_crawler', '-o result.csv'])
+    execute(['scrapy', 'crawl', 'spring_rain_doctor_crawler'])
 
 
 # 定义要运行的函数

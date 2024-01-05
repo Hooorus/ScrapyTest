@@ -107,8 +107,10 @@ def data_clean_from_file(filename: str, file_type: str):
             reader = csv.reader(csvfile)
             writer = csv.writer(temp_csvfile)
             trash_pattern = re.compile(r'^\s*{}?\s*$')
+            # re.compile(r'^\s*(\{\s*\}|\s*\'\'|\'URL\'|\'AlREADY_PARSED\')\s*$')
             for row in reader:
                 if not trash_pattern.match(row[0]):
+                    logging.info(f"\033[34m=====trash_pattern match: \n{row}=====\n\033[0m")
                     writer.writerow(row)
         shutil.move(temp_filename, f"{filename}.{file_type}")
         logging.info(f"\033[32m=====Data cleaned in {filename}.{file_type}=====\n\033[0m")
@@ -138,7 +140,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
         self.result_file_name = "result"
         self.result_file_type = "csv"
 
-        self.pipline_list_container = []
+        self.pipeline_list_container = []
 
         self.max_crawl_doctors = settings.get("MAX_CRAWL_DOCTOR")  # 设置最大爬取数量
 
@@ -376,25 +378,26 @@ class SpringRainDoctorSpider(scrapy.Spider):
         # -------------对结果进行数据清洗----------------
         data_clean_from_file(self.result_file_name, self.result_file_type)
 
-        # -------------TODO 将result.csv导入数据库----------------
-        self.write_result_to_mysql(self, self.result_file_name, self.result_file_type, self.pipline_list_container)
+        # -------------将result.csv导入数据库----------------
+        # self.write_result_to_mysql(self.result_file_name, self.result_file_type, self.pipeline_list_container)
 
-    # ------------------------------数据写入mysql模块------------------------------
-    def write_result_to_mysql(self, filename: str, file_type: str, to_container: list):
         logging.info("\033[32m=====Entering write_result_to_mysql=====\n\033[0m")
-        result_pipeline_container = read_from_file(to_container, filename, file_type, 0)
+        result_pipeline_container = read_from_file(self.pipeline_list_container, self.result_file_name,
+                                                   self.result_file_type, 0)
         for result_pipeline_unit in result_pipeline_container:
-            logging.debug(f"\033[34m=====result_pipline_unit: {result_pipeline_unit}=====\n\033[0m")
+            logging.debug(f"\033[34m=====result_pipeline_unit: {result_pipeline_unit}=====\n\033[0m")
             # bean转换
             dict_result = ast.literal_eval(result_pipeline_unit)
-            logging.debug(f"\033[34m=====result_pipline_unit: {dict_result}=====\n\033[0m")
+            logging.debug(f"\033[34m=====result_pipeline_unit: {dict_result}=====\n\033[0m")
             item_instance = SpringRainDoctorItem(
                 issue_title=dict_result.get('issue_title', ''),
                 issue_desc=dict_result.get('issue_desc', ''),
                 answer=dict_result.get('answer', ''),
-                case_url=dict_result.get('case_url', '')
+                case_url=dict_result.get('case_url', ''),
+                already_parsed='1'
             )
-            try:
-                self.mysql_pipeline.process_item(self, item_instance)
+            try:  # FIXME yield 回去之后scrapy会修改result.csv
+                yield item_instance  # scrapy无法抽出pipelines的函数，只能通过yield来调用pipeline
+                # self.mysql_pipeline.process_item(self.mysql_pipeline, item_instance, SpringRainDoctorSpider)
             except Exception as e:
                 logging.warning(f"\033[33m=====Exception in write_result_to_mysql: \n{e}\n\033[0m")

@@ -50,7 +50,7 @@ DOWNLOADER_MIDDLEWARES = {
 
 # 启用 MySQL 存储管道
 ITEM_PIPELINES = {
-    'myFirstSpider.pipelines.MysqlPipeline': 300,  # 300 是处理的优先级，可以根据需要调整
+    'myFirstSpider.pipelines.MysqlPipeline': 301,  # 300 是处理的优先级，可以根据需要调整
 }
 
 PROXY_POOL_URLS = [
