@@ -127,6 +127,8 @@ class SpringRainDoctorSpider(scrapy.Spider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         settings = get_project_settings()
+        self.scrapy_mode = settings.get("SCRAPY_MODE")  # 设置scrapy模式，1:断点续传，其他:正常模式
+
         self.allocations = []  # 装载所有url爬取到的内容
 
         self.doctor_url_container = []
@@ -143,6 +145,8 @@ class SpringRainDoctorSpider(scrapy.Spider):
         self.pipeline_list_container = []
 
         self.max_crawl_doctors = settings.get("MAX_CRAWL_DOCTOR")  # 设置最大爬取数量
+        self.start_pagination_click = settings.get("PAGINATION_BTN_START")  # 初始分页位置
+        self.max_pagination_click = settings.get("PAGINATION_BTN_SIZE")  # 爬取指定分页数
 
         # ------------------------------PROXY AREA------------------------------
         self.driver = webdriver.Chrome()
@@ -203,15 +207,25 @@ class SpringRainDoctorSpider(scrapy.Spider):
 
         # -------------------至此，按年进入需要爬取的页面完成，接下来是对医生名片的操作（第二级）-------------------
 
+        # -------------------断点续传-------------------
+        if self.scrapy_mode == 1:
+            yield from self.parse_issue_archive(response)
+            return
+        # --------------------------------------------
+
         while (is_next_button_available(self.driver)
-               and GLOBAL_DOCTOR_CRAWLED_URL < self.max_crawl_doctors
-               and GLOBAL_PAGINATION_BTN_COUNT < 9):  # 判断是否还有下一页
-            next_page_btn = WebDriverWait(self.driver, 5).until(
-                expected_conditions.presence_of_element_located(
-                    (By.XPATH, "//div[@class='pagebar']/a[@class='next']"))
-            )
-            next_page_btn.click()
-            GLOBAL_PAGINATION_BTN_COUNT += 1  # 分页点击次数+1
+               and GLOBAL_DOCTOR_CRAWLED_URL < self.max_crawl_doctors  # 爬取指定医生数量
+               and GLOBAL_PAGINATION_BTN_COUNT < 9  # 最大分页数量不超过9
+               and GLOBAL_PAGINATION_BTN_COUNT + self.start_pagination_click < self.max_pagination_click):  # 爬取指定分页数量
+            # -------------------判定是否处于需要爬取的位置-------------------
+            if GLOBAL_PAGINATION_BTN_COUNT < self.start_pagination_click:
+                next_page_btn = WebDriverWait(self.driver, 5).until(
+                    expected_conditions.presence_of_element_located(
+                        (By.XPATH, "//div[@class='pagebar']/a[@class='next']"))
+                )
+                next_page_btn.click()
+                GLOBAL_PAGINATION_BTN_COUNT += 1  # 分页点击次数+1
+            # ---------------------------------------------------------
             doctor_cards_list = WebDriverWait(self.driver, 5).until(  # 判定当前页面是否存在医生卡片
                 expected_conditions.presence_of_all_elements_located(
                     (By.XPATH, "//div[@class='doctor-list']/div[contains(@class, 'doctor-info-item')]"))
@@ -401,3 +415,7 @@ class SpringRainDoctorSpider(scrapy.Spider):
                 # self.mysql_pipeline.process_item(self.mysql_pipeline, item_instance, SpringRainDoctorSpider)
             except Exception as e:
                 logging.warning(f"\033[33m=====Exception in write_result_to_mysql: \n{e}\n\033[0m")
+        # 清空result.csv
+        with open(self.result_file_name + '.' + self.result_file_type, 'w', encoding='utf-8') as f:
+            f.truncate(0)
+        return 1

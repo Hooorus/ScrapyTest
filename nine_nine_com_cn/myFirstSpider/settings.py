@@ -66,8 +66,15 @@ PROXY_POOL_URL = 'http://leoatchina.duia.us:3128'
 
 # 99健康网 设置最大爬取数量
 MAX_CRAWL_DATA = 10
-# 春雨医生 最大爬取医生量(并不精准，至少超过设置值，每页医生的数量20，建议至少20且为20的倍数)（每个医生大概有7个issue）∴数据量=20*7
-MAX_CRAWL_DOCTOR = 1
+
+# 春雨医生 最大爬取医生量(20个一页)
+MAX_CRAWL_DOCTOR = 20
+# 初始分页位置，建议，从上次爬完的位置（0开始计算）
+PAGINATION_BTN_START = 1
+# 爬取指定分页数，建议：1，不然很容易404
+PAGINATION_BTN_SIZE = 1
+# 置scrapy模式，1:断点续传，其他:正常模式，每次全部存储完毕需要清空result.csv
+SCRAPY_MODE = 0
 
 # 设置每次休息时间区间
 SLEEP_TIME = (3, 8)
